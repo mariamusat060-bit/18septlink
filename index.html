@@ -1,14 +1,23 @@
 <!DOCTYPE html>
 <html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: sans-serif; padding: 16px; max-width: 640px; }
+    textarea { width: 100%; font-size: 16px; padding: 12px; box-sizing: border-box; }
+    button { font-size: 18px; padding: 12px 16px; margin: 8px 8px 8px 0; }
+    pre { white-space: pre-wrap; font-size: 16px; }
+  </style>
+</head>
 <body>
   <p><b>Draft only. Instructor checks before the student sees it.</b></p>
   <h1>Debrief</h1>
   <p>What went well</p>
-  <textarea id="well" rows="3" cols="60"></textarea>
+  <textarea id="well" rows="4"></textarea>
   <p>One thing to fix</p>
-  <textarea id="fix" rows="3" cols="60"></textarea>
+  <textarea id="fix" rows="4"></textarea>
   <p>What to review next</p>
-  <textarea id="next" rows="3" cols="60"></textarea><br>
+  <textarea id="next" rows="4"></textarea><br>
   <button onclick="go()">Generate</button>
   <button onclick="navigator.clipboard.writeText(document.getElementById('out').textContent)">Copy</button>
   <pre id="out"></pre>
