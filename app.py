@@ -21,17 +21,17 @@ def generate():
         messages=[{
             "role": "user",
             "content":
-                            
-                "Write a student debrief draft. Instructor will edit.\n"
-                "Use ONLY the instructor notes. Do not invent maneuvers, checklists, or facts.\n"
-                "If a section is empty or nonsense, write: Not provided.\n"
-                "Australian training. Simple student words.\n"
-                "No # and no markdown. Exactly three short paragraphs:\n"
-                "Went well: ...\n"
-                "One fix: ...\n"
-                "Review next: ...\n"
-                "One sentence each. Notes:\n" + notes
-                
+            "Write a debrief draft. Instructor will edit before anyone else sees it.\n"
+            "Write as the instructor. Use you or short commands. Never I.\n"
+            "Tone: short coaching bullets like 'dont read off the board'.\n"
+            "Use ONLY the instructor notes. Do not invent maneuvers, checklists, or facts.\n"
+            "If a section is empty or nonsense, write: Not provided.\n"
+            "Australian training. Clear simple words.\n"
+            "No # and no markdown. Exactly three short parts:\n"
+            "Went well: ...\n"
+            "One fix: ...\n"
+            "Review next: ...\n"
+            "Notes:\n" + notes
         }],
     )
     return jsonify({"text": r.content[0].text})
