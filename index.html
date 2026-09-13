@@ -6,7 +6,7 @@
     body { font-family: sans-serif; padding: 16px; max-width: 640px; }
     textarea { width: 100%; font-size: 16px; padding: 12px; box-sizing: border-box; }
     button { font-size: 18px; padding: 12px 16px; margin: 8px 8px 8px 0; }
-    pre { white-space: pre-wrap; font-size: 16px; }
+    #out { font-size: 16px; line-height: 1.4; margin-top: 16px; white-space: pre-wrap; }
   </style>
 </head>
 <body>
@@ -19,8 +19,8 @@
   <p>What to review next</p>
   <textarea id="next" rows="4"></textarea><br>
   <button onclick="go()">Generate</button>
-  <button onclick="navigator.clipboard.writeText(document.getElementById('out').textContent)">Copy</button>
-  <pre id="out"></pre>
+  <button onclick="navigator.clipboard.writeText(document.getElementById('out').innerText)">Copy</button>
+  <div id="out"></div>
   <script>
     async function go() {
       const notes =
@@ -33,7 +33,9 @@
         body: JSON.stringify({ notes })
       });
       const d = await r.json();
-      document.getElementById("out").textContent = d.text;
+      const out = document.getElementById("out");
+      out.innerText = d.text;
+      out.scrollIntoView({ behavior: "smooth" });
     }
   </script>
 </body>
