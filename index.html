@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <p><b>Draft only. Instructor checks before the student sees it.</b></p>
+  <h1>Debrief</h1>
+  <p>What went well</p>
+  <textarea id="well" rows="3" cols="60"></textarea>
+  <p>One thing to fix</p>
+  <textarea id="fix" rows="3" cols="60"></textarea>
+  <p>What to review next</p>
+  <textarea id="next" rows="3" cols="60"></textarea><br>
+  <button onclick="go()">Generate</button>
+  <button onclick="navigator.clipboard.writeText(document.getElementById('out').textContent)">Copy</button>
+  <pre id="out"></pre>
+  <script>
+    async function go() {
+      const notes =
+        "Went well: " + document.getElementById("well").value + "\n" +
+        "Fix: " + document.getElementById("fix").value + "\n" +
+        "Next: " + document.getElementById("next").value;
+      const r = await fetch("/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes })
+      });
+      const d = await r.json();
+      document.getElementById("out").textContent = d.text;
+    }
+  </script>
+</body>
+</html>
