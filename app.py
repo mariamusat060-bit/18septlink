@@ -19,11 +19,13 @@ Like: dont read off the board. dont say sunshade its a glareshield.
 Student can understand every line.
 
 If the input is short (a few words):
-Write 4-10 short command lines about ONLY those topics.
+Write ONE short line per topic he named. Never more topics than he named.
+Do not pad to reach a target count. A 1-topic input gets 1 line. A 2-topic input gets 2 lines. Never invent a 3rd or 4th topic to fill space.
 Example input: landings good
-Example direction: landings were good. keep that. do not write a new lesson.
+Correct output: landings were good. keep that.
+Wrong output: anything with a topic he did not type, like circuit, checks, calls, downwind, base, mistakes in general.
 Example input: landings good angles bad
-Write lines about landings and angles only.
+Correct output: two lines, one about landings, one about angles. Nothing else.
 
 If the input is a long briefing critique:
 Tidy it into his headers and keep his points.
