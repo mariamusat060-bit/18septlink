@@ -1,4 +1,5 @@
 import os
+import re
 from flask import Flask, request, jsonify, send_from_directory
 import anthropic
 
@@ -20,6 +21,30 @@ LAZY_NONANSWERS = {
     "all good", "no issues", "nothing to add", "sweet", "solid",
     "good lesson", "went well", "no comment",
 }
+
+# Judgement and filler words with no topic content on their own.
+# "pace" is deliberately excluded — he uses it as a real topic
+# (e.g. "slower pace" was a genuine, honest line in testing).
+FILLER_WORDS = {
+    "good", "bad", "fine", "ok", "okay", "nil", "nothing", "sweet",
+    "solid", "great", "poor", "weak", "strong", "needs", "need",
+    "work", "working", "improve", "improved", "improvement", "keep",
+    "keeping", "kept", "better", "worse", "worst", "best", "more",
+    "less", "just", "only", "bit", "still", "very", "really", "quite",
+    "that", "this", "it", "on", "in", "at", "to", "for", "of", "and",
+    "the", "a", "an", "was", "were", "is", "are", "be", "been",
+    "today", "please", "overall", "general", "generally", "again",
+    "up", "down", "all", "some", "abit",
+}
+
+
+def names_no_topic(text):
+    """True if, after stripping generic judgement/filler words, nothing
+    concrete is left — e.g. "needs work just a bit" strips down to
+    nothing, same problem as "good" but wearing more words."""
+    words = re.findall(r"[a-z']+", text.lower())
+    remaining = [w for w in words if w not in FILLER_WORDS]
+    return len(remaining) == 0
 
 PROMPT_PREFIX = """You write the debrief the instructor would write if he had 3 extra minutes.
 He only typed a few words. Your job is to turn those words into a comment as good as his real notes.
@@ -81,6 +106,11 @@ def generate():
     if notes.strip(".!").lower() in LAZY_NONANSWERS:
         return jsonify({
             "error": "Name one real thing. Example: landings good / lookout weak"
+        }), 400
+
+    if names_no_topic(notes):
+        return jsonify({
+            "error": "That names no topic. Say what it's about. Example: landings needs work"
         }), 400
 
     if len(notes) > MAX_NOTES_CHARS:
