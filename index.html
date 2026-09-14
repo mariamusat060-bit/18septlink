@@ -3,38 +3,138 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-body { font-family: sans-serif; padding: 16px; max-width: 640px; }
-textarea { width: 100%; font-size: 16px; padding: 12px; box-sizing: border-box; }
-button { font-size: 18px; padding: 12px 16px; margin: 8px 8px 8px 0; }
-#out { font-size: 16px; line-height: 1.4; margin-top: 16px; white-space: pre-wrap; }
-.warn { font-size: 14px; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    padding: 20px;
+    max-width: 640px;
+    margin: 0 auto;
+    color: #1a1a1a;
+  }
+  .warn {
+    font-size: 14px;
+    color: #b5451b;
+    margin: 0 0 20px 0;
+  }
+  h1 {
+    font-size: 28px;
+    margin: 0 0 20px 0;
+  }
+  textarea {
+    width: 100%;
+    font-size: 16px;
+    padding: 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    resize: vertical;
+  }
+  textarea::placeholder {
+    color: #999;
+  }
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 14px 0;
+  }
+  #generateBtn {
+    font-size: 17px;
+    font-weight: 600;
+    padding: 12px 22px;
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+  }
+  #generateBtn:disabled {
+    background: #999;
+  }
+  #copyBtn {
+    font-size: 14px;
+    padding: 8px 14px;
+    background: none;
+    color: #555;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+  }
+  #status {
+    font-size: 13px;
+    color: #2e7d32;
+  }
+  #out {
+    font-size: 16px;
+    line-height: 1.5;
+    margin-top: 20px;
+    padding: 16px;
+    background: #f7f7f5;
+    border-left: 3px solid #1a1a1a;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    min-height: 24px;
+  }
 </style>
 </head>
 <body>
 <p class="warn"><b>Check every number before a student sees this.</b></p>
 <h1>Debrief</h1>
-<p>Type 2–4 words. Example: landings good angles bad</p>
-<textarea id="notes" rows="16"></textarea><br>
-<button onclick="go()">Generate</button>
-<button onclick="navigator.clipboard.writeText(document.getElementById('out').innerText)">Copy</button>
+<textarea id="notes" rows="10" placeholder="landings good angles bad"></textarea>
+<div class="actions">
+  <button id="generateBtn" onclick="go()">Generate</button>
+  <button id="copyBtn" onclick="copyOut()">Copy</button>
+  <span id="status"></span>
+</div>
 <div id="out"></div>
 <script>
 async function go() {
   const notes = document.getElementById("notes").value.trim();
   const out = document.getElementById("out");
+  const status = document.getElementById("status");
+  const generateBtn = document.getElementById("generateBtn");
   const empty = /^(air\s*work\s*complete|airwork complete)$/i.test(notes);
+
+  status.innerText = "";
+
   if (!notes || empty) {
     out.innerText = "Add one real thing. Example: landings good / lookout weak";
     return;
   }
-  const r = await fetch("/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ notes })
-  });
-  const d = await r.json();
-  out.innerText = d.text || d.error || "No text";
-  out.scrollIntoView({ behavior: "smooth" });
+
+  generateBtn.disabled = true;
+  generateBtn.innerText = "Generating...";
+
+  try {
+    const r = await fetch("/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notes })
+    });
+    const d = await r.json();
+    out.innerText = d.text || d.error || "No text";
+    out.scrollIntoView({ behavior: "smooth" });
+
+    if (d.text) {
+      try {
+        await navigator.clipboard.writeText(d.text);
+        status.innerText = "Copied.";
+      } catch (copyErr) {
+        status.innerText = "Tap Copy.";
+      }
+    }
+  } catch (fetchErr) {
+    out.innerText = "Could not reach the server. Try again.";
+  } finally {
+    generateBtn.disabled = false;
+    generateBtn.innerText = "Generate";
+  }
+}
+
+function copyOut() {
+  const text = document.getElementById("out").innerText;
+  const status = document.getElementById("status");
+  if (!text) return;
+  navigator.clipboard.writeText(text)
+    .then(() => { status.innerText = "Copied."; })
+    .catch(() => { status.innerText = "Copy failed. Select and copy manually."; });
 }
 </script>
 </body>
