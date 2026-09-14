@@ -10,6 +10,17 @@ client = anthropic.Anthropic(api_key=API_KEY)
 
 MAX_NOTES_CHARS = 6000
 
+# Generic non-answers that name no real topic. Catches lazy closers beyond
+# "airwork complete" specifically. This runs server-side so it can't be
+# skipped by hitting /generate directly, and it's broader than the
+# frontend's single-phrase check.
+LAZY_NONANSWERS = {
+    "airwork complete", "air work complete",
+    "good", "fine", "ok", "okay", "nil", "nothing", "n/a", "na",
+    "all good", "no issues", "nothing to add", "sweet", "solid",
+    "good lesson", "went well", "no comment",
+}
+
 PROMPT_PREFIX = """You write the debrief the instructor would write if he had 3 extra minutes.
 He only typed a few words. Your job is to turn those words into a comment as good as his real notes.
 He must spend no more time than typing airwork complete and pressing one button.
@@ -66,6 +77,11 @@ def generate():
 
     if not notes:
         return jsonify({"error": "No notes provided."}), 400
+
+    if notes.strip(".!").lower() in LAZY_NONANSWERS:
+        return jsonify({
+            "error": "Name one real thing. Example: landings good / lookout weak"
+        }), 400
 
     if len(notes) > MAX_NOTES_CHARS:
         return jsonify({"error": "Notes too long. Split into two briefs."}), 400

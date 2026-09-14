@@ -71,13 +71,49 @@
     border-radius: 4px;
     white-space: pre-wrap;
     min-height: 24px;
+    transition: background 0.6s ease;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0 6px 0;
+  }
+  .chip {
+    font-size: 14px;
+    padding: 7px 12px;
+    background: #fff;
+    color: #333;
+    border: 1px solid #ccc;
+    border-radius: 999px;
+  }
+  .chip:active {
+    background: #eee;
+  }
+  .chip-label {
+    font-size: 12px;
+    color: #888;
+    margin: 4px 0 2px 0;
   }
 </style>
 </head>
 <body>
 <p class="warn"><b>Check every number before a student sees this.</b></p>
 <h1>Debrief</h1>
-<textarea id="notes" rows="10" placeholder="landings good angles bad" autofocus></textarea>
+<textarea id="notes" rows="4" placeholder="landings good angles bad" autofocus></textarea>
+<p class="chip-label">Tap a topic, then good / needs work</p>
+<div class="chips">
+  <button type="button" class="chip" onclick="addWord('landings')">Landings</button>
+  <button type="button" class="chip" onclick="addWord('lookout')">Lookout</button>
+  <button type="button" class="chip" onclick="addWord('radio calls')">Radio calls</button>
+  <button type="button" class="chip" onclick="addWord('angles')">Angles</button>
+  <button type="button" class="chip" onclick="addWord('circuit')">Circuit</button>
+  <button type="button" class="chip" onclick="addWord('checks')">Checks</button>
+</div>
+<div class="chips">
+  <button type="button" class="chip" onclick="addWord('good')">good</button>
+  <button type="button" class="chip" onclick="addWord('needs work')">needs work</button>
+</div>
 <div class="actions">
   <button id="generateBtn" onclick="go()">Generate</button>
   <button id="copyBtn" onclick="copyOut()">Copy</button>
@@ -85,6 +121,13 @@
 </div>
 <div id="out"></div>
 <script>
+function addWord(word) {
+  const notes = document.getElementById("notes");
+  const current = notes.value.trim();
+  notes.value = current ? current + " " + word : word;
+  notes.focus();
+}
+
 async function go() {
   const notes = document.getElementById("notes").value.trim();
   const out = document.getElementById("out");
@@ -113,6 +156,9 @@ async function go() {
     out.scrollIntoView({ behavior: "smooth" });
 
     if (d.text) {
+      out.classList.add("done");
+      setTimeout(() => out.classList.remove("done"), 900);
+
       try {
         await navigator.clipboard.writeText(d.text);
         status.innerText = "Copied.";
