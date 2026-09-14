@@ -20,14 +20,19 @@ button { font-size: 18px; padding: 12px 16px; margin: 8px 8px 8px 0; }
 <div id="out"></div>
 <script>
 async function go() {
-  const notes = document.getElementById("notes").value;
+  const notes = document.getElementById("notes").value.trim();
+  const out = document.getElementById("out");
+  const empty = /^(air\s*work\s*complete|airwork complete)$/i.test(notes);
+  if (!notes || empty) {
+    out.innerText = "Add one real thing. Example: landings good / lookout weak";
+    return;
+  }
   const r = await fetch("/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ notes })
   });
   const d = await r.json();
-  const out = document.getElementById("out");
   out.innerText = d.text || d.error || "No text";
   out.scrollIntoView({ behavior: "smooth" });
 }
