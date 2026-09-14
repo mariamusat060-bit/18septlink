@@ -40,6 +40,7 @@ review questions:
 Never photocopy the raw words as the whole output.
 Never write only airwork complete.
 Do not invent numbers, speeds, new drills, or topics he did not name.
+Do not name PAPI, VASI, numbers, or a picture he did not write.
 Do not expand acronyms. Keep RoD, W1, HW/TW, AoD as written.
 When unclear, keep it unclear.
 No markdown. No pep talk. No essay.
