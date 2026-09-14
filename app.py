@@ -14,24 +14,37 @@ def home():
 
 @app.route("/generate", methods=["POST"])
 def generate():
-    notes = request.json.get("notes", "")
+    data = request.json or {}
+    well = data.get("well", "")
+    fix = data.get("fix", "")
+    review = data.get("review", "")
+    notes = data.get("notes", "")
+    if well or fix or review:
+        notes = (
+            "Went well: " + well + "\n"
+            "One fix: " + fix + "\n"
+            "Review next: " + review
+        )
+
     r = client.messages.create(
         model="claude-sonnet-4-5",
-        max_tokens=400,
+        max_tokens=280,
         messages=[{
             "role": "user",
             "content":
-            "Write a debrief draft. Instructor will edit before anyone else sees it.\n"
-            "Write as the instructor. Use you or short commands. Never I.\n"
-            "Tone: short coaching bullets like 'dont read off the board'.\n"
-            "Use ONLY the instructor notes. Do not invent maneuvers, checklists, or facts.\n"
-            "If a section is empty or nonsense, write: Not provided.\n"
-            "Australian training. Clear simple words.\n"
-            "No # and no markdown. Exactly three short parts:\n"
-            "Went well: ...\n"
-            "One fix: ...\n"
-            "Review next: ...\n"
-            "Notes:\n" + notes
+                "Write a debrief draft. Instructor edits before anyone else sees it.\n"
+                "Write as the instructor. You or short commands. Never I.\n"
+                "Sound like a tired human instructor, not ChatGPT.\n"
+                "Short. Fragments ok. Like: dont read off the board.\n"
+                "Use ONLY what the instructor typed. Do not invent drills, chair flying, checklists, or extra facts.\n"
+                "If they only wrote one word, stay with that word. Do not pad.\n"
+                "If a section is empty or nonsense, write: Not provided.\n"
+                "Australian flight training. Simple words a student understands.\n"
+                "No # and no markdown. Exactly three short parts:\n"
+                "Went well: ...\n"
+                "One fix: ...\n"
+                "Review next: ...\n"
+                "Instructor notes:\n" + notes
         }],
     )
     return jsonify({"text": r.content[0].text})
