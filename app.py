@@ -79,10 +79,10 @@ def generate():
             messages=[{"role": "user", "content": prompt}],
         )
         return jsonify({"text": r.content[0].text})
-    except anthropic.APIError as e:
-        return jsonify({"error": str(e)}), 502
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except anthropic.APIError:
+        return jsonify({"error": "Could not generate right now. Try again in a moment."}), 502
+    except Exception:
+        return jsonify({"error": "Something went wrong. Try again."}), 500
 
 
 if __name__ == "__main__":
