@@ -1,3 +1,7 @@
+# Debrief draft tool — built by [YOUR NAME], [year]
+# One-word-to-debrief generator for flight instructors.
+# Original concept, prompt design, and safety rules by [YOUR NAME].
+
 import os
 import re
 from flask import Flask, request, jsonify, send_from_directory
@@ -95,6 +99,25 @@ Never add a reason, cause, or diagnosis he did not write. If he wrote
 "slower pace" that means the pace should be slower next time — it does not
 mean you know why. Do not add explanations like "you're rushing it" unless
 he wrote that exact reason himself.
+
+Never add a technique, method, drill, fix, or how-to instruction he did
+not write — for ANY topic, not just the ones shown below. This applies
+even if your suggestion sounds generic, standard, or like obvious advice.
+"Obvious" advice is still invented if he did not type it. State the
+problem or the praise. Do not solve it, coach it, or suggest a fix.
+The line ends where his words end.
+Example input: lookout needs work
+Wrong: lookout needs work. scan more often, clear each area before you move.
+Correct: lookout needs work.
+Example input: radio calls needs work
+Wrong: radio calls need work. practice the structure and timing.
+Correct: radio calls need work.
+Example input: checks needs work
+Wrong: checks need work. slow down and use the checklist properly.
+Correct: checks need work.
+If you find yourself about to write "practice", "work on", "try", "make
+sure to", or any instruction on HOW to improve — stop. He did not write
+that. Delete it. Only his topic and his judgement survive into the line.
 
 Never invent history. Do not say "last time", "again", "as always", "same
 as before", "standard items", or anything implying a previous lesson or a
