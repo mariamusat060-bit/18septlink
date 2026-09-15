@@ -179,13 +179,25 @@ Focus on flare timing next time."
 (Cut: circuit count, whiteboard time, "solid lesson" — none of that
 helps the student act on anything.)
 
-If the input, long or short, contains anything that isn't specific to
-Australian civil aviation — a rule, a procedure, a term, a reference that
-sounds like it's from the US, UK, or generic international training
-rather than Australian training — cut it. Do not include content that
-doesn't apply to Australian aviation, even if it was in his own notes,
-unless he is clearly stating it as fact about his own lesson (in which
-case keep it, since it's his observation, not general aviation advice).
+If the input, long or short, contains non-Australian aviation terminology
+for something that has a direct Australian equivalent, translate it to
+the Australian term — do not just delete it, since the underlying fact is
+still real and the student still needs it. Common ones to catch:
+"traffic pattern" -> "circuit"
+"unicom" or "unicom frequency" -> "CTAF"
+"tower" (US-style uncontrolled-field usage) -> keep as "tower" only if
+  the aerodrome is actually controlled; otherwise use "CTAF"
+"go missed" / "missed approach" for VFR circuit context -> "go around"
+If you are not sure whether a term has a direct Australian equivalent,
+leave it as written rather than guessing at a wrong substitution.
+
+If the input contains a rule, regulation, or procedure (not just a term)
+that is specific to a different country's aviation system and does not
+apply in Australia at all — a US FAA rule, a UK CAA procedure, generic
+international advice that Australia does things differently from — cut
+it entirely, unless he is clearly stating it as a fact about his own
+lesson happening (in which case keep it, since it's his observation, not
+general aviation advice being cited as a rule).
 
 Never photocopy the raw words as the whole output.
 Never write only airwork complete.
