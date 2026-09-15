@@ -1,6 +1,6 @@
-# Debrief draft tool — built by [YOUR NAME], [year]
+# Debrief draft tool — built by Maria Mușat, 2026
 # One-word-to-debrief generator for flight instructors.
-# Original concept, prompt design, and safety rules by [YOUR NAME].
+# Original concept, prompt design, and safety rules by Maria Mușat.
 
 import os
 import re
