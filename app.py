@@ -371,24 +371,80 @@ def find_possibly_dropped(topics, output_text):
     return dropped
 
 
-def make_pdf(text, title="Consolidated notes"):
+from reportlab.lib import colors
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.enums import TA_LEFT
+
+NOTEZ_GREEN = colors.HexColor("#173404")
+NOTEZ_MID_GREEN = colors.HexColor("#3B6D11")
+NOTEZ_CREAM = colors.HexColor("#FAF9F3")
+NOTEZ_TEXT = colors.HexColor("#2C2C2A")
+
+
+def _notez_styles():
+    base = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "NoteZTitle", parent=base["Title"],
+        textColor=NOTEZ_GREEN, fontSize=22, spaceAfter=6,
+    )
+    header_style = ParagraphStyle(
+        "NoteZHeader", parent=base["Heading2"],
+        textColor=NOTEZ_MID_GREEN, fontSize=13,
+        spaceBefore=14, spaceAfter=4,
+    )
+    body_style = ParagraphStyle(
+        "NoteZBody", parent=base["BodyText"],
+        textColor=NOTEZ_TEXT, fontSize=10.5, leading=15,
+        alignment=TA_LEFT,
+    )
+    return title_style, header_style, body_style
+
+
+def _draw_background(canvas, doc):
+    canvas.saveState()
+    canvas.setFillColor(NOTEZ_CREAM)
+    canvas.rect(0, 0, doc.pagesize[0], doc.pagesize[1], stroke=0, fill=1)
+    canvas.setFillColor(NOTEZ_GREEN)
+    canvas.rect(0, doc.pagesize[1] - 0.15 * inch, doc.pagesize[0], 0.15 * inch, stroke=0, fill=1)
+    canvas.restoreState()
+
+
+def make_pdf(text, title="noteZ"):
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=letter,
         leftMargin=0.9 * inch, rightMargin=0.9 * inch,
-        topMargin=0.9 * inch, bottomMargin=0.9 * inch,
+        topMargin=1.0 * inch, bottomMargin=0.9 * inch,
     )
-    styles = getSampleStyleSheet()
-    story = [Paragraph(title, styles["Title"]), Spacer(1, 0.3 * inch)]
+    title_style, header_style, body_style = _notez_styles()
+    story = [Paragraph(title, title_style), Spacer(1, 0.25 * inch)]
+
     for para in text.split("\n\n"):
         para = para.strip()
         if not para:
             continue
-        safe = para.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        safe = safe.replace("\n", "<br/>")
-        story.append(Paragraph(safe, styles["BodyText"]))
-        story.append(Spacer(1, 0.15 * inch))
-    doc.build(story)
+        lines = para.split("\n")
+        first_line = lines[0].strip()
+        rest = lines[1:]
+
+        # Treat a short first line ending in ":" as a topic header,
+        # styled distinctly from the body text under it.
+        if first_line.endswith(":") and len(first_line) < 60:
+            safe_header = (first_line.rstrip(":")
+                           .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+            story.append(Paragraph(safe_header, header_style))
+            body_lines = rest
+        else:
+            body_lines = lines
+
+        body_text = "\n".join(body_lines).strip()
+        if body_text:
+            safe_body = body_text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            safe_body = safe_body.replace("\n", "<br/>")
+            story.append(Paragraph(safe_body, body_style))
+        story.append(Spacer(1, 0.12 * inch))
+
+    doc.build(story, onFirstPage=_draw_background, onLaterPages=_draw_background)
     buf.seek(0)
     return buf
 
