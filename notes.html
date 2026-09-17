@@ -81,6 +81,7 @@
 </div>
 
 <button id="goBtn" onclick="go()">Consolidate</button>
+<button id="copyBtn" type="button" onclick="copyOut()" style="background:#fff; border:0.5px solid #C0DD97; color:#3B6D11; margin-top:8px;">Copy</button>
 <div id="status"></div>
 <div id="out"></div>
 
@@ -143,14 +144,12 @@ async function go() {
     out.innerText = d.text || d.error || "No text";
     out.scrollIntoView({ behavior: "smooth" });
 
-    if (d.warning) {
-      status.innerText = d.warning;
-    } else if (d.text) {
+    if (d.text) {
       try {
         await navigator.clipboard.writeText(d.text);
-        status.innerText = "Copied.";
+        status.innerText = d.warning ? d.warning + " (copied)" : "Copied.";
       } catch (e) {
-        status.innerText = "";
+        status.innerText = d.warning ? d.warning + " (tap Copy)" : "Tap Copy.";
       }
     }
   } catch (e) {
@@ -159,6 +158,15 @@ async function go() {
     btn.disabled = false;
     btn.innerText = "Consolidate";
   }
+}
+
+function copyOut() {
+  const text = document.getElementById("out").innerText;
+  const status = document.getElementById("status");
+  if (!text) return;
+  navigator.clipboard.writeText(text)
+    .then(() => { status.innerText = "Copied."; })
+    .catch(() => { status.innerText = "Copy failed. Select and copy manually."; });
 }
 </script>
 </body>
