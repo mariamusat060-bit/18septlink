@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>noteZ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    padding: 20px;
+    max-width: 480px;
+    margin: 0 auto;
+    color: #173404;
+    background: #FAF9F3;
+  }
+  h1 {
+    font-family: "Quicksand", sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  p.sub {
+    font-size: 13px;
+    color: #5F5E5A;
+    margin: 0 0 18px 0;
+  }
+  textarea, input[type=text] {
+    width: 100%;
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 0.5px solid #C0DD97;
+    border-radius: 12px;
+    background: #fff;
+    color: #173404;
+  }
+  textarea { resize: vertical; margin-bottom: 10px; }
+  input[type=text]::placeholder, textarea::placeholder { color: #97A08A; }
+  button {
+    width: 100%;
+    font-family: "Quicksand", sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    padding: 12px 0;
+    margin-top: 12px;
+    border: none;
+    border-radius: 12px;
+    background: #173404;
+    color: #fff;
+  }
+  button:disabled { background: #97A08A; }
+  #status { font-size: 13px; color: #3B6D11; margin-top: 8px; }
+  #out {
+    font-size: 14px;
+    line-height: 1.6;
+    margin-top: 16px;
+    padding: 14px;
+    background: #EAF3DE;
+    border-radius: 12px;
+    white-space: pre-wrap;
+    min-height: 24px;
+  }
+  footer { font-size: 11px; color: #97A08A; margin-top: 30px; text-align: center; }
+</style>
+</head>
+<body>
+<h1>noteZ</h1>
+<p class="sub">Paste your notes. Say what to keep, add, or format as. Nothing gets silently dropped.</p>
+
+<textarea id="notes" rows="8" placeholder="Paste your notes here" autofocus></textarea>
+<input type="text" id="instructions" placeholder="e.g. keep everything, add 5 practice questions" />
+
+<div style="display:flex; gap:8px; margin-top:10px;">
+  <button type="button" id="fmtText" onclick="setFormat('text')" style="flex:1; background:#173404; color:#fff; border:none; border-radius:12px; font-size:13px; padding:9px 0;">Text</button>
+  <button type="button" id="fmtPdf" onclick="setFormat('pdf')" style="flex:1; background:#fff; border:0.5px solid #C0DD97; color:#3B6D11; border-radius:12px; font-size:13px; padding:9px 0;">PDF</button>
+</div>
+
+<button id="goBtn" onclick="go()">Consolidate</button>
+<div id="status"></div>
+<div id="out"></div>
+
+<footer>Built by Maria Mușat. &copy; 2026.</footer>
+
+<script>
+let selectedFormat = "text";
+
+function setFormat(fmt) {
+  selectedFormat = fmt;
+  document.getElementById("fmtText").style.background = fmt === "text" ? "#173404" : "#fff";
+  document.getElementById("fmtText").style.color = fmt === "text" ? "#fff" : "#3B6D11";
+  document.getElementById("fmtText").style.border = fmt === "text" ? "none" : "0.5px solid #C0DD97";
+  document.getElementById("fmtPdf").style.background = fmt === "pdf" ? "#173404" : "#fff";
+  document.getElementById("fmtPdf").style.color = fmt === "pdf" ? "#fff" : "#3B6D11";
+  document.getElementById("fmtPdf").style.border = fmt === "pdf" ? "none" : "0.5px solid #C0DD97";
+}
+
+async function go() {
+  const notes = document.getElementById("notes").value.trim();
+  const instructions = document.getElementById("instructions").value.trim();
+  const out = document.getElementById("out");
+  const status = document.getElementById("status");
+  const btn = document.getElementById("goBtn");
+
+  status.innerText = "";
+  out.innerText = "";
+
+  if (!notes) {
+    out.innerText = "Paste some notes first.";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerText = "Consolidating...";
+
+  try {
+    const r = await fetch("/generate-notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notes, instructions, format: selectedFormat })
+    });
+
+    if (selectedFormat === "pdf" && r.ok) {
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "consolidated_notes.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      status.innerText = "PDF downloaded.";
+      const warning = r.headers.get("X-Completeness-Warning");
+      if (warning) out.innerText = warning;
+      return;
+    }
+
+    const d = await r.json();
+    out.innerText = d.text || d.error || "No text";
+    out.scrollIntoView({ behavior: "smooth" });
+
+    if (d.warning) {
+      status.innerText = d.warning;
+    } else if (d.text) {
+      try {
+        await navigator.clipboard.writeText(d.text);
+        status.innerText = "Copied.";
+      } catch (e) {
+        status.innerText = "";
+      }
+    }
+  } catch (e) {
+    out.innerText = "Could not reach the server. Try again.";
+  } finally {
+    btn.disabled = false;
+    btn.innerText = "Consolidate";
+  }
+}
+</script>
+</body>
+</html>
