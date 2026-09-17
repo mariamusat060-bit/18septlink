@@ -70,7 +70,7 @@
 </head>
 <body>
 <h1>noteZ</h1>
-<p class="sub">Paste your notes. Say what to keep, add, or format as. Nothing gets silently dropped.</p>
+<p class="sub">Paste your notes below. Tell it what to keep, add, or how you want it — nothing gets left out.</p>
 
 <textarea id="notes" rows="8" placeholder="Paste your notes here" autofocus></textarea>
 <input type="text" id="instructions" placeholder="e.g. keep everything, add 5 practice questions" />
@@ -78,6 +78,11 @@
 <div style="display:flex; gap:8px; margin-top:10px;">
   <button type="button" id="fmtText" onclick="setFormat('text')" style="flex:1; background:#173404; color:#fff; border:none; border-radius:12px; font-size:13px; padding:9px 0;">Text</button>
   <button type="button" id="fmtPdf" onclick="setFormat('pdf')" style="flex:1; background:#fff; border:0.5px solid #C0DD97; color:#3B6D11; border-radius:12px; font-size:13px; padding:9px 0;">PDF</button>
+</div>
+
+<div style="display:flex; gap:8px; margin-top:8px;">
+  <button type="button" id="styleTidy" onclick="setStyle('tidy')" style="flex:1; background:#173404; color:#fff; border:none; border-radius:12px; font-size:13px; padding:9px 0;">Tidy up</button>
+  <button type="button" id="styleKeep" onclick="setStyle('keep')" style="flex:1; background:#fff; border:0.5px solid #C0DD97; color:#3B6D11; border-radius:12px; font-size:13px; padding:9px 0;">Keep my words</button>
 </div>
 
 <button id="goBtn" onclick="go()">Consolidate</button>
@@ -89,6 +94,7 @@
 
 <script>
 let selectedFormat = "text";
+let selectedStyle = "tidy";
 
 function setFormat(fmt) {
   selectedFormat = fmt;
@@ -98,6 +104,16 @@ function setFormat(fmt) {
   document.getElementById("fmtPdf").style.background = fmt === "pdf" ? "#173404" : "#fff";
   document.getElementById("fmtPdf").style.color = fmt === "pdf" ? "#fff" : "#3B6D11";
   document.getElementById("fmtPdf").style.border = fmt === "pdf" ? "none" : "0.5px solid #C0DD97";
+}
+
+function setStyle(style) {
+  selectedStyle = style;
+  document.getElementById("styleTidy").style.background = style === "tidy" ? "#173404" : "#fff";
+  document.getElementById("styleTidy").style.color = style === "tidy" ? "#fff" : "#3B6D11";
+  document.getElementById("styleTidy").style.border = style === "tidy" ? "none" : "0.5px solid #C0DD97";
+  document.getElementById("styleKeep").style.background = style === "keep" ? "#173404" : "#fff";
+  document.getElementById("styleKeep").style.color = style === "keep" ? "#fff" : "#3B6D11";
+  document.getElementById("styleKeep").style.border = style === "keep" ? "none" : "0.5px solid #C0DD97";
 }
 
 async function go() {
@@ -122,7 +138,7 @@ async function go() {
     const r = await fetch("/generate-notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ notes, instructions, format: selectedFormat })
+      body: JSON.stringify({ notes, instructions, format: selectedFormat, style: selectedStyle })
     });
 
     if (selectedFormat === "pdf" && r.ok) {
