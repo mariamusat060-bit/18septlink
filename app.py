@@ -11,7 +11,7 @@ app = Flask(__name__)
 API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 if not API_KEY:
     raise RuntimeError("ANTHROPIC_API_KEY environment variable not set.")
-client = anthropic.Anthropic(api_key=API_KEY, timeout=300.0)
+client = anthropic.Anthropic(api_key=API_KEY)
 
 MAX_NOTES_CHARS = 6000
 
@@ -293,12 +293,13 @@ from reportlab.lib.units import inch
 
 # Separate, larger cap for this tool specifically — real lecture notes
 # pasted from a PDF are much longer than a quick debrief note, so this
-# doesn't share James's MAX_NOTES_CHARS above. Ziyu's real paste hit
-# 60,499 characters on the first genuine long-notes test — 150,000 is
-# 2.5x that observed size, real margin without reaching for the
-# technical ceiling, which trades away timeout safety and the
-# accidental safety net for headroom with no evidence of being needed.
-MAX_STUDENT_NOTES_CHARS = 150000
+# doesn't share James's MAX_NOTES_CHARS above. Kept well below the
+# earlier 150,000 figure: a 72-page real paste at that size hit
+# Render's own platform-level request timeout (separate from anything
+# tunable in this code) and failed outright. This smaller cap trades
+# "handles anything in one go" for "reliably completes" — a genuinely
+# large paste needs to be split into batches for now.
+MAX_STUDENT_NOTES_CHARS = 12000
 
 NOTES_PROMPT = """You consolidate a student's notes for exam revision.
 
@@ -418,22 +419,7 @@ def _draw_background(canvas, doc):
     canvas.restoreState()
 
 
-def _strip_control_chars(text):
-    """PDF-extracted text (which is exactly what this tool's real users
-    paste in) often carries invisible control characters, form feeds,
-    and broken encoding artifacts from copy-pasting out of a PDF viewer.
-    reportlab's Paragraph is XML-based and can fail to parse text
-    containing raw control characters even after escaping &, <, >.
-    Strip anything that isn't a normal printable character, tab, or
-    newline, rather than letting PDF generation crash on it."""
-    return "".join(
-        ch for ch in text
-        if ch in ("\n", "\t") or (ord(ch) >= 32 and ord(ch) != 127)
-    )
-
-
 def make_pdf(text, title="noteZ"):
-    text = _strip_control_chars(text)
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=letter,
@@ -481,8 +467,8 @@ def notes_page():
 @app.route("/generate-notes", methods=["POST"])
 def generate_notes():
     data = request.json or {}
-    notes = _strip_control_chars((data.get("notes") or "").strip())
-    instructions = _strip_control_chars((data.get("instructions") or "").strip())
+    notes = (data.get("notes") or "").strip()
+    instructions = (data.get("instructions") or "").strip()
     output_format = (data.get("format") or "text").strip().lower()
     style = (data.get("style") or "tidy").strip().lower()
 
@@ -491,7 +477,7 @@ def generate_notes():
 
     if len(notes) > MAX_STUDENT_NOTES_CHARS:
         return jsonify({
-            "error": f"That's really long ({len(notes)} characters). Try splitting it into two batches — under {MAX_STUDENT_NOTES_CHARS} characters each."
+            "error": f"That's a lot ({len(notes)} characters). Try splitting it into smaller pieces, under {MAX_STUDENT_NOTES_CHARS} characters each."
         }), 400
 
     prompt = NOTES_PROMPT.format(
@@ -503,7 +489,7 @@ def generate_notes():
     try:
         r = client.messages.create(
             model="claude-sonnet-4-5",
-            max_tokens=32000,
+            max_tokens=4000,
             messages=[{"role": "user", "content": prompt}],
         )
         text = r.content[0].text.strip()
