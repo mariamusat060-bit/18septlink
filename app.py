@@ -293,10 +293,12 @@ from reportlab.lib.units import inch
 
 # Separate, larger cap for this tool specifically — real lecture notes
 # pasted from a PDF are much longer than a quick debrief note, so this
-# doesn't share James's MAX_NOTES_CHARS above. ~40,000 characters is
-# roughly a full dense lecture's worth of text, well under the model's
-# actual context limit, with room left for the prompt and output.
-MAX_STUDENT_NOTES_CHARS = 40000
+# doesn't share James's MAX_NOTES_CHARS above. Ziyu's real paste hit
+# 60,499 characters on the first genuine long-notes test — 150,000 is
+# 2.5x that observed size, real margin without reaching for the
+# technical ceiling, which trades away timeout safety and the
+# accidental safety net for headroom with no evidence of being needed.
+MAX_STUDENT_NOTES_CHARS = 150000
 
 NOTES_PROMPT = """You consolidate a student's notes for exam revision.
 
@@ -486,7 +488,7 @@ def generate_notes():
     try:
         r = client.messages.create(
             model="claude-sonnet-4-5",
-            max_tokens=24000,
+            max_tokens=32000,
             messages=[{"role": "user", "content": prompt}],
         )
         text = r.content[0].text.strip()
