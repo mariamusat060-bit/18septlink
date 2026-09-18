@@ -70,7 +70,7 @@
 </head>
 <body>
 <h1>noteZ</h1>
-<p class="sub">Paste your notes below. Tell it what to keep or add — nothing gets left out.</p>
+<p class="sub">Paste your notes below (works best under ~8 pages at a time). Tell it what to keep or add — nothing gets left out.</p>
 
 <textarea id="notes" rows="8" placeholder="Paste your notes here" autofocus></textarea>
 <input type="text" id="instructions" placeholder="e.g. keep everything, add 5 practice questions" />
@@ -86,9 +86,30 @@
 let lastNotes = "";
 let lastInstructions = "";
 
+// Text copied from a PDF viewer can contain broken Unicode — most
+// commonly "unpaired surrogate" characters from certain PDF fonts and
+// ligatures. That can break JSON.stringify or the fetch call itself
+// before the request ever reaches the server, which is exactly the
+// kind of failure that shows up as a generic "could not reach the
+// server" error with no real network problem at all. Strip anything
+// unsafe right when the text is read, before it's used for anything.
+function sanitizeForRequest(text) {
+  // Remove unpaired UTF-16 surrogates (lone high or low surrogates
+  // not part of a valid pair) — these are what can break JSON
+  // encoding or the network request. Uses lookaround so only the
+  // broken surrogate itself is removed, never an adjacent character.
+  let clean = text.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, "");
+  clean = clean.replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
+  // Also strip C0 control characters (keep tab, newline, carriage
+  // return) — same PDF-artifact cleanup as the server already does,
+  // done here too so the payload is clean before it's even sent.
+  clean = clean.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  return clean;
+}
+
 async function go() {
-  const notes = document.getElementById("notes").value.trim();
-  const instructions = document.getElementById("instructions").value.trim();
+  const notes = sanitizeForRequest(document.getElementById("notes").value.trim());
+  const instructions = sanitizeForRequest(document.getElementById("instructions").value.trim());
   const out = document.getElementById("out");
   const status = document.getElementById("status");
   const textLink = document.getElementById("textLink");
