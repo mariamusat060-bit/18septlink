@@ -358,13 +358,26 @@ def extract_candidate_topics(notes):
     lines = [l.strip() for l in notes.split("\n") if l.strip()]
     candidates = []
     for line in lines:
-        # Lines that look like a heading: short, and either end in a colon
-        # or are the whole line in a short phrase (under ~6 words).
         clean = line.rstrip(":").strip()
         word_count = len(clean.split())
+        # Skip anything that isn't plausibly a real topic name — emails,
+        # URLs, and citation-style fragments (a year in parentheses, a
+        # page-number marker) got wrongly picked up before, and a real
+        # example with one caused the actual crash this was meant to fix.
+        if "@" in clean:
+            continue
+        if "http://" in clean.lower() or "https://" in clean.lower() or "www." in clean.lower():
+            continue
+        if re.search(r"\([^)]*\d{4}[^)]*\)", clean):  # any citation-style (... year ...)
+            continue
+        if re.match(r"^\d+\.?\s", clean):  # a numbered list item like "14."
+            continue
+        if re.search(r"\.\w{2,4}\b", clean) and any(
+            ext in clean.lower() for ext in (".html", ".htm", ".pdf", ".com", ".org", ".edu", ".au", ".net")
+        ):  # a filename or domain fragment
+            continue
         if 1 <= word_count <= 6 and len(clean) < 60:
             candidates.append(clean.lower())
-    # De-duplicate, drop very generic single words that aren't useful signals
     generic = {"notes", "topic", "summary", "overview", "introduction"}
     seen = set()
     result = []
@@ -538,7 +551,17 @@ def generate_notes():
                 download_name="consolidated_notes.pdf",
             )
             if warning:
-                response.headers["X-Completeness-Warning"] = warning
+                # HTTP headers must be ASCII, single-line, and short —
+                # this is exactly what broke before: a warning built from
+                # raw note content (an email, a citation, an em dash) is
+                # not guaranteed to satisfy any of that. Force it safe
+                # here, at the last possible point, so nothing upstream
+                # can ever produce an invalid header again.
+                safe_warning = warning.encode("ascii", "ignore").decode("ascii")
+                safe_warning = safe_warning.replace("\n", " ").replace("\r", " ")
+                safe_warning = safe_warning[:200]
+                if safe_warning.strip():
+                    response.headers["X-Completeness-Warning"] = safe_warning
             return response
 
         return jsonify({"text": text, "warning": warning})
