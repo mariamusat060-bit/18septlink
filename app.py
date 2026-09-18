@@ -573,7 +573,11 @@ def generate_notes():
             return response
 
         return jsonify({"text": text, "warning": warning})
-    except anthropic.APIError:
+    except anthropic.APIError as e:
+        print(f"[generate-notes] Anthropic API error: {e}", flush=True)
         return jsonify({"error": "Could not generate right now. Try again in a moment."}), 502
     except Exception:
+        import traceback
+        print("[generate-notes] Unhandled exception:", flush=True)
+        traceback.print_exc()
         return jsonify({"error": "Something went wrong. Try again."}), 500
