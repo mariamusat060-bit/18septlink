@@ -522,18 +522,31 @@ def generate_notes():
     )
 
     try:
-        r = client.messages.create(
+        # Large max_tokens values require streaming — the SDK itself
+        # refuses to run a plain, non-streaming request above a certain
+        # size, since it can't guarantee it'll finish in a reasonable
+        # time otherwise. This collects the full streamed response
+        # server-side before doing anything else with it, so the rest
+        # of the code (completeness check, PDF generation) works
+        # exactly the same as before on the assembled text.
+        text_parts = []
+        stop_reason = None
+        with client.messages.stream(
             model="claude-sonnet-4-5",
             max_tokens=32000,
             messages=[{"role": "user", "content": prompt}],
-        )
-        text = r.content[0].text.strip()
+        ) as stream:
+            for chunk in stream.text_stream:
+                text_parts.append(chunk)
+            final_message = stream.get_final_message()
+            stop_reason = final_message.stop_reason
+        text = "".join(text_parts).strip()
 
         # Real truncation check: did the response actually get cut off
         # by hitting the token limit? This is different from (and more
         # reliable than) the heuristic content check below — this is a
         # hard fact from the API, not a guess.
-        was_truncated = getattr(r, "stop_reason", None) == "max_tokens"
+        was_truncated = stop_reason == "max_tokens"
 
         # Code-level completeness check, not just trusting the model's
         # word for it. This only ever warns — it never blocks or hides
