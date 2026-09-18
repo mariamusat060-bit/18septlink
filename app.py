@@ -299,7 +299,15 @@ from reportlab.lib.units import inch
 # tunable in this code) and failed outright. This smaller cap trades
 # "handles anything in one go" for "reliably completes" — a genuinely
 # large paste needs to be split into batches for now.
-MAX_STUDENT_NOTES_CHARS = 12000
+# Separate, larger cap for this tool specifically — real lecture notes
+# pasted from a PDF are much longer than a quick debrief note, so this
+# doesn't share James's MAX_NOTES_CHARS above. Set to cover roughly 30
+# pages of dense text plus margin (~3,000 chars/page average). The
+# actual crash from last night (a malformed HTTP header) is fixed at
+# the source, so this is raised with real confidence on the size front —
+# but a generation this large may approach Render's platform-level
+# request timeout, which is a separate, untested risk at this size.
+MAX_STUDENT_NOTES_CHARS = 120000
 
 NOTES_PROMPT = """You consolidate a student's notes for exam revision.
 
@@ -516,7 +524,7 @@ def generate_notes():
     try:
         r = client.messages.create(
             model="claude-sonnet-4-5",
-            max_tokens=4000,
+            max_tokens=32000,
             messages=[{"role": "user", "content": prompt}],
         )
         text = r.content[0].text.strip()
