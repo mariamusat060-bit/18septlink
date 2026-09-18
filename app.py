@@ -419,6 +419,20 @@ def _draw_background(canvas, doc):
     canvas.restoreState()
 
 
+def _strip_control_chars(text):
+    """Text copy-pasted from a PDF viewer routinely carries invisible
+    control characters, broken ligatures, and encoding artifacts that
+    don't show up visually but can break downstream processing —
+    confirmed as the actual real-world trigger, not just a theoretical
+    risk. Strip anything that isn't a normal printable character, tab,
+    or newline, applied as early as possible (right on input) rather
+    than only before PDF rendering."""
+    return "".join(
+        ch for ch in text
+        if ch in ("\n", "\t") or (ord(ch) >= 32 and ord(ch) != 127)
+    )
+
+
 def make_pdf(text, title="noteZ"):
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -467,8 +481,8 @@ def notes_page():
 @app.route("/generate-notes", methods=["POST"])
 def generate_notes():
     data = request.json or {}
-    notes = (data.get("notes") or "").strip()
-    instructions = (data.get("instructions") or "").strip()
+    notes = _strip_control_chars((data.get("notes") or "").strip())
+    instructions = _strip_control_chars((data.get("instructions") or "").strip())
     output_format = (data.get("format") or "text").strip().lower()
     style = (data.get("style") or "tidy").strip().lower()
 
