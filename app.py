@@ -477,10 +477,16 @@ def generate_notes():
     try:
         r = client.messages.create(
             model="claude-sonnet-4-5",
-            max_tokens=2000,
+            max_tokens=24000,
             messages=[{"role": "user", "content": prompt}],
         )
         text = r.content[0].text.strip()
+
+        # Real truncation check: did the response actually get cut off
+        # by hitting the token limit? This is different from (and more
+        # reliable than) the heuristic content check below — this is a
+        # hard fact from the API, not a guess.
+        was_truncated = getattr(r, "stop_reason", None) == "max_tokens"
 
         # Code-level completeness check, not just trusting the model's
         # word for it. This only ever warns — it never blocks or hides
@@ -488,7 +494,12 @@ def generate_notes():
         candidate_topics = extract_candidate_topics(notes)
         dropped = find_possibly_dropped(candidate_topics, text)
         warning = None
-        if dropped:
+        if was_truncated:
+            warning = (
+                "Your notes were too long for one pass and got cut off. "
+                "Try splitting them into two smaller batches."
+            )
+        elif dropped:
             shown = ", ".join(dropped[:5])
             warning = f"Heads up — these might have been dropped, double check: {shown}"
 
@@ -497,7 +508,7 @@ def generate_notes():
             response = send_file(
                 pdf_buf,
                 mimetype="application/pdf",
-                as_attachment=True,
+                as_attachment=False,
                 download_name="consolidated_notes.pdf",
             )
             if warning:

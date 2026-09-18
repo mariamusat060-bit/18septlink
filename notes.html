@@ -21,9 +21,6 @@
     font-size: 22px;
     font-weight: 600;
     margin: 0 0 4px 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
   }
   p.sub {
     font-size: 13px;
@@ -55,6 +52,7 @@
   }
   button:disabled { background: #97A08A; }
   #status { font-size: 13px; color: #3B6D11; margin-top: 8px; }
+  #status a { color: #3B6D11; }
   #out {
     font-size: 14px;
     line-height: 1.6;
@@ -65,108 +63,78 @@
     white-space: pre-wrap;
     min-height: 24px;
   }
+  #textLink { font-size: 12px; margin-top: 10px; display: none; }
+  #textLink a { color: #5F5E5A; text-decoration: underline; cursor: pointer; }
   footer { font-size: 11px; color: #97A08A; margin-top: 30px; text-align: center; }
 </style>
 </head>
 <body>
 <h1>noteZ</h1>
-<p class="sub">Paste your notes below. Tell it what to keep, add, or how you want it — nothing gets left out.</p>
+<p class="sub">Paste your notes below. Tell it what to keep or add — nothing gets left out.</p>
 
 <textarea id="notes" rows="8" placeholder="Paste your notes here" autofocus></textarea>
 <input type="text" id="instructions" placeholder="e.g. keep everything, add 5 practice questions" />
 
-<div style="display:flex; gap:8px; margin-top:10px;">
-  <button type="button" id="fmtText" onclick="setFormat('text')" style="flex:1; background:#173404; color:#fff; border:none; border-radius:12px; font-size:13px; padding:9px 0;">Text</button>
-  <button type="button" id="fmtPdf" onclick="setFormat('pdf')" style="flex:1; background:#fff; border:0.5px solid #C0DD97; color:#3B6D11; border-radius:12px; font-size:13px; padding:9px 0;">PDF</button>
-</div>
-
-<div style="display:flex; gap:8px; margin-top:8px;">
-  <button type="button" id="styleTidy" onclick="setStyle('tidy')" style="flex:1; background:#173404; color:#fff; border:none; border-radius:12px; font-size:13px; padding:9px 0;">Tidy up</button>
-  <button type="button" id="styleKeep" onclick="setStyle('keep')" style="flex:1; background:#fff; border:0.5px solid #C0DD97; color:#3B6D11; border-radius:12px; font-size:13px; padding:9px 0;">Keep my words</button>
-</div>
-
 <button id="goBtn" onclick="go()">Consolidate</button>
-<button id="copyBtn" type="button" onclick="copyOut()" style="background:#fff; border:0.5px solid #C0DD97; color:#3B6D11; margin-top:8px;">Copy</button>
 <div id="status"></div>
+<div id="textLink"><a onclick="viewAsText()">View as text instead</a></div>
 <div id="out"></div>
 
 <footer>Built by Maria Mușat. &copy; 2026.</footer>
 
 <script>
-let selectedFormat = "text";
-let selectedStyle = "tidy";
-
-function setFormat(fmt) {
-  selectedFormat = fmt;
-  document.getElementById("fmtText").style.background = fmt === "text" ? "#173404" : "#fff";
-  document.getElementById("fmtText").style.color = fmt === "text" ? "#fff" : "#3B6D11";
-  document.getElementById("fmtText").style.border = fmt === "text" ? "none" : "0.5px solid #C0DD97";
-  document.getElementById("fmtPdf").style.background = fmt === "pdf" ? "#173404" : "#fff";
-  document.getElementById("fmtPdf").style.color = fmt === "pdf" ? "#fff" : "#3B6D11";
-  document.getElementById("fmtPdf").style.border = fmt === "pdf" ? "none" : "0.5px solid #C0DD97";
-}
-
-function setStyle(style) {
-  selectedStyle = style;
-  document.getElementById("styleTidy").style.background = style === "tidy" ? "#173404" : "#fff";
-  document.getElementById("styleTidy").style.color = style === "tidy" ? "#fff" : "#3B6D11";
-  document.getElementById("styleTidy").style.border = style === "tidy" ? "none" : "0.5px solid #C0DD97";
-  document.getElementById("styleKeep").style.background = style === "keep" ? "#173404" : "#fff";
-  document.getElementById("styleKeep").style.color = style === "keep" ? "#fff" : "#3B6D11";
-  document.getElementById("styleKeep").style.border = style === "keep" ? "none" : "0.5px solid #C0DD97";
-}
+let lastNotes = "";
+let lastInstructions = "";
 
 async function go() {
   const notes = document.getElementById("notes").value.trim();
   const instructions = document.getElementById("instructions").value.trim();
   const out = document.getElementById("out");
   const status = document.getElementById("status");
+  const textLink = document.getElementById("textLink");
   const btn = document.getElementById("goBtn");
 
   status.innerText = "";
   out.innerText = "";
+  textLink.style.display = "none";
 
   if (!notes) {
     out.innerText = "Paste some notes first.";
     return;
   }
 
+  lastNotes = notes;
+  lastInstructions = instructions;
+
   btn.disabled = true;
   btn.innerText = "Consolidating...";
 
   try {
+    // PDF is the default output — she said this is what she actually
+    // wants for revision. Text is available as a secondary option
+    // after generating, not a decision she has to make up front.
     const r = await fetch("/generate-notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ notes, instructions, format: selectedFormat, style: selectedStyle })
+      body: JSON.stringify({ notes, instructions, format: "pdf" })
     });
 
-    if (selectedFormat === "pdf" && r.ok) {
+    if (r.ok) {
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "consolidated_notes.pdf";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      status.innerText = "PDF downloaded.";
-      const warning = r.headers.get("X-Completeness-Warning");
-      if (warning) out.innerText = warning;
-      return;
-    }
-
-    const d = await r.json();
-    out.innerText = d.text || d.error || "No text";
-    out.scrollIntoView({ behavior: "smooth" });
-
-    if (d.text) {
-      try {
-        await navigator.clipboard.writeText(d.text);
-        status.innerText = d.warning ? d.warning + " (copied)" : "Copied.";
-      } catch (e) {
-        status.innerText = d.warning ? d.warning + " (tap Copy)" : "Tap Copy.";
+      const opened = window.open(url, "_blank");
+      if (!opened) {
+        status.innerText = "Pop-up blocked — tap the link below to open the PDF.";
+        out.innerHTML = '<a href="' + url + '" target="_blank">Open your PDF</a>';
+      } else {
+        status.innerText = "PDF opened in a new tab.";
       }
+      const warning = r.headers.get("X-Completeness-Warning");
+      if (warning) status.innerText += " " + warning;
+      textLink.style.display = "block";
+    } else {
+      const d = await r.json();
+      out.innerText = d.error || "Something went wrong.";
     }
   } catch (e) {
     out.innerText = "Could not reach the server. Try again.";
@@ -176,13 +144,32 @@ async function go() {
   }
 }
 
-function copyOut() {
-  const text = document.getElementById("out").innerText;
+async function viewAsText() {
+  const out = document.getElementById("out");
   const status = document.getElementById("status");
-  if (!text) return;
-  navigator.clipboard.writeText(text)
-    .then(() => { status.innerText = "Copied."; })
-    .catch(() => { status.innerText = "Copy failed. Select and copy manually."; });
+  status.innerText = "Loading text...";
+
+  try {
+    const r = await fetch("/generate-notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notes: lastNotes, instructions: lastInstructions, format: "text" })
+    });
+    const d = await r.json();
+    out.innerText = d.text || d.error || "No text";
+    out.scrollIntoView({ behavior: "smooth" });
+
+    if (d.text) {
+      try {
+        await navigator.clipboard.writeText(d.text);
+        status.innerText = d.warning ? d.warning + " (copied)" : "Copied.";
+      } catch (e) {
+        status.innerText = d.warning ? d.warning : "";
+      }
+    }
+  } catch (e) {
+    out.innerText = "Could not reach the server. Try again.";
+  }
 }
 </script>
 </body>
