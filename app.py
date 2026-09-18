@@ -11,7 +11,7 @@ app = Flask(__name__)
 API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 if not API_KEY:
     raise RuntimeError("ANTHROPIC_API_KEY environment variable not set.")
-client = anthropic.Anthropic(api_key=API_KEY)
+client = anthropic.Anthropic(api_key=API_KEY, timeout=300.0)
 
 MAX_NOTES_CHARS = 6000
 
@@ -418,7 +418,22 @@ def _draw_background(canvas, doc):
     canvas.restoreState()
 
 
+def _strip_control_chars(text):
+    """PDF-extracted text (which is exactly what this tool's real users
+    paste in) often carries invisible control characters, form feeds,
+    and broken encoding artifacts from copy-pasting out of a PDF viewer.
+    reportlab's Paragraph is XML-based and can fail to parse text
+    containing raw control characters even after escaping &, <, >.
+    Strip anything that isn't a normal printable character, tab, or
+    newline, rather than letting PDF generation crash on it."""
+    return "".join(
+        ch for ch in text
+        if ch in ("\n", "\t") or (ord(ch) >= 32 and ord(ch) != 127)
+    )
+
+
 def make_pdf(text, title="noteZ"):
+    text = _strip_control_chars(text)
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=letter,
@@ -466,8 +481,8 @@ def notes_page():
 @app.route("/generate-notes", methods=["POST"])
 def generate_notes():
     data = request.json or {}
-    notes = (data.get("notes") or "").strip()
-    instructions = (data.get("instructions") or "").strip()
+    notes = _strip_control_chars((data.get("notes") or "").strip())
+    instructions = _strip_control_chars((data.get("instructions") or "").strip())
     output_format = (data.get("format") or "text").strip().lower()
     style = (data.get("style") or "tidy").strip().lower()
 
