@@ -2,82 +2,95 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>noteZ</title>
+<title>Folio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; }
+  :root {
+    --sage: #4F6F52;
+    --sage-light: #7C9473;
+    --parchment: #F7F2E7;
+    --ink: #2B2B26;
+    --muted: #7A7568;
+    --border: #DCD4C0;
+  }
   body {
-    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    padding: 20px;
-    max-width: 480px;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    padding: 32px 24px;
+    max-width: 520px;
     margin: 0 auto;
-    color: #173404;
-    background: #FAF9F3;
+    color: var(--ink);
+    background: var(--parchment);
   }
   h1 {
-    font-family: "Quicksand", sans-serif;
-    font-size: 22px;
+    font-size: 32px;
     font-weight: 600;
-    margin: 0 0 4px 0;
+    letter-spacing: -0.02em;
+    margin: 0 0 8px 0;
+    color: var(--sage);
   }
   p.sub {
-    font-size: 13px;
-    color: #5F5E5A;
-    margin: 0 0 18px 0;
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--ink);
+    margin: 0 0 32px 0;
   }
   textarea, input[type=text] {
     width: 100%;
-    font-size: 14px;
-    padding: 10px 12px;
-    border: 0.5px solid #C0DD97;
-    border-radius: 12px;
+    font-family: inherit;
+    font-size: 15px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
     background: #fff;
-    color: #173404;
+    color: var(--ink);
   }
-  textarea { resize: vertical; margin-bottom: 10px; }
-  input[type=text]::placeholder, textarea::placeholder { color: #97A08A; }
+  textarea { resize: vertical; margin-bottom: 12px; line-height: 1.5; }
+  input[type=text]::placeholder, textarea::placeholder { color: var(--muted); }
   button {
     width: 100%;
-    font-family: "Quicksand", sans-serif;
-    font-size: 15px;
-    font-weight: 500;
-    padding: 12px 0;
-    margin-top: 12px;
-    border: none;
-    border-radius: 12px;
-    background: #173404;
-    color: #fff;
-  }
-  button:disabled { background: #97A08A; }
-  #status { font-size: 13px; color: #3B6D11; margin-top: 8px; }
-  #status a { color: #3B6D11; }
-  #out {
-    font-size: 14px;
-    line-height: 1.6;
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: 600;
+    padding: 15px 0;
     margin-top: 16px;
-    padding: 14px;
-    background: #EAF3DE;
-    border-radius: 12px;
+    border: none;
+    border-radius: 14px;
+    background: var(--sage);
+    color: #fff;
+    letter-spacing: -0.01em;
+  }
+  button:disabled { background: var(--sage-light); }
+  #status { font-size: 14px; color: var(--sage); margin-top: 10px; }
+  #status a { color: var(--sage); }
+  #out {
+    font-size: 15px;
+    line-height: 1.65;
+    margin-top: 20px;
+    padding: 18px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
     white-space: pre-wrap;
     min-height: 24px;
   }
-  #textLink { font-size: 12px; margin-top: 10px; display: none; }
-  #textLink a { color: #5F5E5A; text-decoration: underline; cursor: pointer; }
-  footer { font-size: 11px; color: #97A08A; margin-top: 30px; text-align: center; }
+  #textLink { font-size: 13px; margin-top: 14px; display: none; }
+  #textLink a { color: var(--muted); text-decoration: underline; cursor: pointer; }
+  footer { font-size: 12px; color: var(--muted); margin-top: 40px; text-align: center; }
 </style>
 </head>
 <body>
-<h1>noteZ</h1>
-<p class="sub">Paste your notes below (works best under ~8 pages at a time). Tell it what to keep or add — nothing gets left out.</p>
+<h1>Folio</h1>
+<p class="sub">Nothing gets left out.</p>
 
 <textarea id="notes" rows="8" placeholder="Paste your notes here" autofocus></textarea>
 <input type="text" id="instructions" placeholder="e.g. keep everything, add 5 practice questions" />
 
-<button id="goBtn" onclick="go()">Consolidate</button>
+<button id="goBtn" onclick="go()">Folio</button>
 <div id="status"></div>
-<div id="textLink"><a onclick="viewAsText()">View as text instead</a></div>
+<div id="textLink"><a onclick="viewAsText()">View as text</a></div>
 <div id="out"></div>
 
 <footer>Built by Maria Mușat. &copy; 2026.</footer>
@@ -86,23 +99,9 @@
 let lastNotes = "";
 let lastInstructions = "";
 
-// Text copied from a PDF viewer can contain broken Unicode — most
-// commonly "unpaired surrogate" characters from certain PDF fonts and
-// ligatures. That can break JSON.stringify or the fetch call itself
-// before the request ever reaches the server, which is exactly the
-// kind of failure that shows up as a generic "could not reach the
-// server" error with no real network problem at all. Strip anything
-// unsafe right when the text is read, before it's used for anything.
 function sanitizeForRequest(text) {
-  // Remove unpaired UTF-16 surrogates (lone high or low surrogates
-  // not part of a valid pair) — these are what can break JSON
-  // encoding or the network request. Uses lookaround so only the
-  // broken surrogate itself is removed, never an adjacent character.
   let clean = text.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, "");
   clean = clean.replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
-  // Also strip C0 control characters (keep tab, newline, carriage
-  // return) — same PDF-artifact cleanup as the server already does,
-  // done here too so the payload is clean before it's even sent.
   clean = clean.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
   return clean;
 }
@@ -128,12 +127,9 @@ async function go() {
   lastInstructions = instructions;
 
   btn.disabled = true;
-  btn.innerText = "Consolidating...";
+  btn.innerText = "Working...";
 
   try {
-    // PDF is the default output — she said this is what she actually
-    // wants for revision. Text is available as a secondary option
-    // after generating, not a decision she has to make up front.
     const r = await fetch("/generate-notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -161,7 +157,7 @@ async function go() {
     out.innerText = "Could not reach the server. Try again.";
   } finally {
     btn.disabled = false;
-    btn.innerText = "Consolidate";
+    btn.innerText = "Folio";
   }
 }
 
