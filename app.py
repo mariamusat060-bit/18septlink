@@ -291,6 +291,13 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.units import inch
 
+# Separate, larger cap for this tool specifically — real lecture notes
+# pasted from a PDF are much longer than a quick debrief note, so this
+# doesn't share James's MAX_NOTES_CHARS above. ~40,000 characters is
+# roughly a full dense lecture's worth of text, well under the model's
+# actual context limit, with room left for the prompt and output.
+MAX_STUDENT_NOTES_CHARS = 40000
+
 NOTES_PROMPT = """You consolidate a student's notes for exam revision.
 
 Rules:
@@ -465,8 +472,10 @@ def generate_notes():
     if not notes:
         return jsonify({"error": "Paste some notes first."}), 400
 
-    if len(notes) > MAX_NOTES_CHARS:
-        return jsonify({"error": "That's a lot — try splitting it into two."}), 400
+    if len(notes) > MAX_STUDENT_NOTES_CHARS:
+        return jsonify({
+            "error": f"That's really long ({len(notes)} characters). Try splitting it into two batches — under {MAX_STUDENT_NOTES_CHARS} characters each."
+        }), 400
 
     prompt = NOTES_PROMPT.format(
         instructions=instructions if instructions else "(none given — keep everything, organise clearly)",
