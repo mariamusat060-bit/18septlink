@@ -357,58 +357,13 @@ instructions ask for (like practice questions) — never touch the wording
 of what she actually wrote."""
 
 
-def extract_candidate_topics(notes):
-    """Heuristic completeness check: pull out likely topic/heading words
-    from the raw notes (lines that look like short headers, or the first
-    few words of paragraph breaks) so we can verify afterward that each
-    one shows up somewhere in the output. Imperfect on purpose — it's a
-    safety net, not a precise parser, and it only ever warns, never blocks."""
-    lines = [l.strip() for l in notes.split("\n") if l.strip()]
-    candidates = []
-    for line in lines:
-        clean = line.rstrip(":").strip()
-        word_count = len(clean.split())
-        # Skip anything that isn't plausibly a real topic name — emails,
-        # URLs, and citation-style fragments (a year in parentheses, a
-        # page-number marker) got wrongly picked up before, and a real
-        # example with one caused the actual crash this was meant to fix.
-        if "@" in clean:
-            continue
-        if "http://" in clean.lower() or "https://" in clean.lower() or "www." in clean.lower():
-            continue
-        if re.search(r"\([^)]*\d{4}[^)]*\)", clean):  # any citation-style (... year ...)
-            continue
-        if re.match(r"^\d+\.?\s", clean):  # a numbered list item like "14."
-            continue
-        if re.search(r"\.\w{2,4}\b", clean) and any(
-            ext in clean.lower() for ext in (".html", ".htm", ".pdf", ".com", ".org", ".edu", ".au", ".net")
-        ):  # a filename or domain fragment
-            continue
-        if 1 <= word_count <= 6 and len(clean) < 60:
-            candidates.append(clean.lower())
-    generic = {"notes", "topic", "summary", "overview", "introduction"}
-    seen = set()
-    result = []
-    for c in candidates:
-        if c not in seen and c not in generic:
-            seen.add(c)
-            result.append(c)
-    return result
-
-
-def find_possibly_dropped(topics, output_text):
-    output_lower = output_text.lower()
-    dropped = [t for t in topics if t not in output_lower]
-    return dropped
-
-
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_LEFT
 
-FOLIO_SAGE = colors.HexColor("#4F6F52")
-FOLIO_SAGE_LIGHT = colors.HexColor("#7C9473")
-FOLIO_PARCHMENT = colors.HexColor("#F7F2E7")
+FOLIO_SAGE = colors.HexColor("#6B8362")
+FOLIO_SAGE_LIGHT = colors.HexColor("#9CAD8D")
+FOLIO_PARCHMENT = colors.HexColor("#F0E6D2")
 FOLIO_INK = colors.HexColor("#2B2B26")
 
 
@@ -544,24 +499,20 @@ def generate_notes():
 
         # Real truncation check: did the response actually get cut off
         # by hitting the token limit? This is different from (and more
-        # reliable than) the heuristic content check below — this is a
-        # hard fact from the API, not a guess.
+        # reliable than) the heuristic content check that used to run
+        # here — this is a hard fact from the API, not a guess. The
+        # earlier keyword-based "might have been dropped" check was
+        # removed: real testing showed it flagging citations, emails,
+        # and copyright footers as "dropped" when they'd been correctly
+        # and deliberately excluded — a wrong warning is worse than no
+        # warning, since it teaches distrust of a tool that's working.
         was_truncated = stop_reason == "max_tokens"
-
-        # Code-level completeness check, not just trusting the model's
-        # word for it. This only ever warns — it never blocks or hides
-        # the output, since the heuristic can produce false positives.
-        candidate_topics = extract_candidate_topics(notes)
-        dropped = find_possibly_dropped(candidate_topics, text)
         warning = None
         if was_truncated:
             warning = (
                 "Your notes were too long for one pass and got cut off. "
                 "Try splitting them into two smaller batches."
             )
-        elif dropped:
-            shown = ", ".join(dropped[:5])
-            warning = f"Heads up — these might have been dropped, double check: {shown}"
 
         if output_format == "pdf":
             pdf_buf = make_pdf(text)

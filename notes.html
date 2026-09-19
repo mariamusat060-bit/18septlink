@@ -9,9 +9,9 @@
 <style>
   * { box-sizing: border-box; }
   :root {
-    --sage: #4F6F52;
-    --sage-light: #7C9473;
-    --parchment: #F7F2E7;
+    --sage: #6B8362;
+    --sage-light: #9CAD8D;
+    --parchment: #F0E6D2;
     --ink: #2B2B26;
     --muted: #7A7568;
     --border: #DCD4C0;
@@ -139,15 +139,20 @@ async function go() {
     if (r.ok) {
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
-      const opened = window.open(url, "_blank");
-      if (!opened) {
-        status.innerText = "Pop-up blocked — tap the link below to open the PDF.";
-        out.innerHTML = '<a href="' + url + '" target="_blank">Open your PDF</a>';
-      } else {
-        status.innerText = "PDF opened in a new tab.";
-      }
+      // Direct, invisible download — no pop-up permission involved,
+      // so there's nothing for a browser to block. Same reliable
+      // pattern already proven on the debrief tool.
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "folio.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      status.innerText = "PDF downloaded.";
+
       const warning = r.headers.get("X-Completeness-Warning");
       if (warning) status.innerText += " " + warning;
+
       textLink.style.display = "block";
     } else {
       const d = await r.json();
