@@ -406,26 +406,26 @@ from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_LEFT
 
-NOTEZ_GREEN = colors.HexColor("#173404")
-NOTEZ_MID_GREEN = colors.HexColor("#3B6D11")
-NOTEZ_CREAM = colors.HexColor("#FAF9F3")
-NOTEZ_TEXT = colors.HexColor("#2C2C2A")
+FOLIO_SAGE = colors.HexColor("#4F6F52")
+FOLIO_SAGE_LIGHT = colors.HexColor("#7C9473")
+FOLIO_PARCHMENT = colors.HexColor("#F7F2E7")
+FOLIO_INK = colors.HexColor("#2B2B26")
 
 
 def _notez_styles():
     base = getSampleStyleSheet()
     title_style = ParagraphStyle(
         "NoteZTitle", parent=base["Title"],
-        textColor=NOTEZ_GREEN, fontSize=22, spaceAfter=6,
+        textColor=FOLIO_SAGE, fontSize=22, spaceAfter=6,
     )
     header_style = ParagraphStyle(
         "NoteZHeader", parent=base["Heading2"],
-        textColor=NOTEZ_MID_GREEN, fontSize=13,
+        textColor=FOLIO_SAGE_LIGHT, fontSize=13,
         spaceBefore=14, spaceAfter=4,
     )
     body_style = ParagraphStyle(
         "NoteZBody", parent=base["BodyText"],
-        textColor=NOTEZ_TEXT, fontSize=10.5, leading=15,
+        textColor=FOLIO_INK, fontSize=10.5, leading=15,
         alignment=TA_LEFT,
     )
     return title_style, header_style, body_style
@@ -433,9 +433,9 @@ def _notez_styles():
 
 def _draw_background(canvas, doc):
     canvas.saveState()
-    canvas.setFillColor(NOTEZ_CREAM)
+    canvas.setFillColor(FOLIO_PARCHMENT)
     canvas.rect(0, 0, doc.pagesize[0], doc.pagesize[1], stroke=0, fill=1)
-    canvas.setFillColor(NOTEZ_GREEN)
+    canvas.setFillColor(FOLIO_SAGE)
     canvas.rect(0, doc.pagesize[1] - 0.15 * inch, doc.pagesize[0], 0.15 * inch, stroke=0, fill=1)
     canvas.restoreState()
 
@@ -454,7 +454,7 @@ def _strip_control_chars(text):
     )
 
 
-def make_pdf(text, title="noteZ"):
+def make_pdf(text, title="Folio"):
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=letter,
