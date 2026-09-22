@@ -111,13 +111,19 @@
     margin-top: 10px;
   }
   .refine-row input { flex: 1; }
-  .export-row {
+  .settings-row {
     display: flex;
     gap: 10px;
     margin-top: 16px;
     flex-wrap: wrap;
     align-items: center;
   }
+  .export-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .export-buttons button { flex: 1; }
   select {
     font-family: inherit;
     font-size: 14px;
@@ -154,7 +160,7 @@
         <button class="secondary" onclick="refine()">Refine</button>
       </div>
 
-      <div class="export-row">
+      <div class="settings-row">
         <select id="themeSelect">
           <option value="sage">Sage &amp; Parchment</option>
           <option value="bw">Black &amp; White</option>
@@ -163,11 +169,15 @@
           <option value="normal">Normal text</option>
           <option value="large">Larger text</option>
         </select>
+      </div>
+
+      <div class="export-buttons">
         <button onclick="exportAs('pdf')">Export PDF</button>
         <button class="secondary" onclick="exportAs('word')">Export Word</button>
       </div>
     </div>
   </div>
+
 </div>
 
 <footer>Built by Maria Mușat. &copy; 2026.</footer>
