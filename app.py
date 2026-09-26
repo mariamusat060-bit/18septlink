@@ -284,6 +284,7 @@ if __name__ == "__main__":
 # ============================================================
 
 import io
+import base64
 import re as _re_notes
 from flask import send_file
 from reportlab.lib.pagesizes import letter
@@ -294,7 +295,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.units import inch
 
 # ============================================================
-# Below: Ziyu's notes consolidator (Folio). Fully separate from
+# Below: Ziyu's notes consolidator (Tidy). Fully separate from
 # the debrief tool above — different routes, different prompt,
 # same Flask app and API client only for convenience.
 # Editing anything above this line can break James's tool.
@@ -363,13 +364,31 @@ silently drop anything — if the student pasted six topics, six topics
 must appear in the output, unless the instructions below explicitly say
 to remove one.
 Do not invent facts, terms, or content that isn't in the source notes.
-If something in the notes is unclear or incomplete, keep it as unclear or
-incomplete — do not fill in a guess.
+If something in the notes is unclear or incomplete, mark it visibly as
+such rather than silently smoothing it into something that sounds
+complete — write it followed by "[unclear from notes]" so the student
+can see exactly where you couldn't tell what they meant, instead of
+guessing and hiding that guess inside normal-sounding prose.
 Follow the student's instructions exactly — if they ask for practice
 questions, add real questions based only on the content they gave you,
 clearly marked as a separate section at the end.
 If no instructions are given, keep everything, organise it clearly under
 its original topics, and do not add anything they did not ask for.
+
+Never talk to the student directly. No greeting, no "Here's your
+summary:", no "Let me know if you'd like any changes!", no commentary
+about what you did or how it turned out. Output only the actual document
+content — nothing before the first topic, nothing after the last one.
+This is not a chat reply, it is the document itself.
+
+Structural consistency: always use the same shape for the output,
+every single time, regardless of what the notes contain — topic
+sections first, in the order they appeared in the source notes, each
+starting with "Topic Name:" on its own line; a Practice Questions
+section (only if asked for) always comes last, always with that exact
+heading. Two different sets of notes run through this should visibly
+look like they belong to the same system, not like two different
+writing styles.
 
 Writing style — this matters as much as the content:
 Write in plain, direct, easy-to-read language. A real complaint about
@@ -431,6 +450,10 @@ everyday words, no dense academic phrasing.
 Keep [TABLE]...[/TABLE] blocks in the same format if the draft has any,
 unless the instruction specifically asks to change a table.
 Plain text only outside of [TABLE] blocks. No markdown symbols.
+
+Never talk to the student directly. No "Sure, here's the updated
+version:", no "I've made that change!", no commentary before or after.
+Output only the revised document itself, nothing else.
 
 Everything between DRAFT START and DRAFT END is the current draft.
 Everything between INSTRUCTION START and INSTRUCTION END is what the
@@ -494,11 +517,11 @@ def _parse_blocks(text):
 # --- Themes ------------------------------------------------------------
 
 THEMES = {
-    "sage": {
-        "primary": colors.HexColor("#6B8362"),
-        "secondary": colors.HexColor("#9CAD8D"),
-        "background": colors.HexColor("#F0E6D2"),
-        "text": colors.HexColor("#2B2B26"),
+    "paper": {
+        "primary": colors.HexColor("#2F6F73"),   # teal accent
+        "secondary": colors.HexColor("#6B9C9F"), # lighter teal for sub-headers
+        "background": colors.HexColor("#FAF8F4"),# warm paper
+        "text": colors.HexColor("#1F2430"),      # deep ink
     },
     "bw": {
         "primary": colors.HexColor("#000000"),
@@ -512,22 +535,28 @@ FONT_SIZES = {"normal": 10.5, "large": 13}
 
 
 def _notez_styles(theme_name, font_size_name):
-    theme = THEMES.get(theme_name, THEMES["sage"])
+    """Uses Times-Roman rather than the visual-preview's actual Literata —
+    Times is a standard PDF font baked into every reader, needing no font
+    file to download or embed, so it renders identically everywhere. This
+    is an honest substitution: a real serif, applied consistently, rather
+    than a broken reference to a font that was never actually embedded."""
+    theme = THEMES.get(theme_name, THEMES["paper"])
     base_size = FONT_SIZES.get(font_size_name, FONT_SIZES["normal"])
     base = getSampleStyleSheet()
     title_style = ParagraphStyle(
         "NoteZTitle", parent=base["Title"],
         textColor=theme["primary"], fontSize=base_size + 11.5, spaceAfter=6,
+        fontName="Times-Bold",
     )
     header_style = ParagraphStyle(
         "NoteZHeader", parent=base["Heading2"],
         textColor=theme["secondary"], fontSize=base_size + 2.5,
-        spaceBefore=14, spaceAfter=4,
+        spaceBefore=14, spaceAfter=4, fontName="Times-Bold",
     )
     body_style = ParagraphStyle(
         "NoteZBody", parent=base["BodyText"],
         textColor=theme["text"], fontSize=base_size, leading=base_size * 1.45,
-        alignment=TA_LEFT,
+        alignment=TA_LEFT, fontName="Times-Roman",
     )
     return title_style, header_style, body_style, theme
 
@@ -543,7 +572,11 @@ def _draw_background(theme):
     return _draw
 
 
-def make_pdf(text, title="Folio", theme_name="sage", font_size_name="normal"):
+def make_pdf(text, title=None, theme_name="paper", font_size_name="normal"):
+    """title is deliberately unused by default — real feedback was clear
+    that the app's own name should never appear on an exported file the
+    person sends to someone else. If a real title is ever wanted, it
+    should come from the content itself, not the app's brand."""
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=letter,
@@ -551,7 +584,10 @@ def make_pdf(text, title="Folio", theme_name="sage", font_size_name="normal"):
         topMargin=1.0 * inch, bottomMargin=0.9 * inch,
     )
     title_style, header_style, body_style, theme = _notez_styles(theme_name, font_size_name)
-    story = [Paragraph(title, title_style), Spacer(1, 0.25 * inch)]
+    story = []
+    if title:
+        story.append(Paragraph(title, title_style))
+        story.append(Spacer(1, 0.25 * inch))
 
     for para in text.split("\n\n"):
         para = para.strip()
@@ -563,7 +599,7 @@ def make_pdf(text, title="Folio", theme_name="sage", font_size_name="normal"):
                 t.setStyle(TableStyle([
                     ("BACKGROUND", (0, 0), (-1, 0), theme["primary"]),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTNAME", (0, 0), (-1, 0), "Times-Bold"),
                     ("GRID", (0, 0), (-1, -1), 0.5, theme["secondary"]),
                     ("FONTSIZE", (0, 0), (-1, -1), FONT_SIZES.get(font_size_name, 10.5)),
                     ("TOPPADDING", (0, 0), (-1, -1), 6),
@@ -595,10 +631,25 @@ def make_pdf(text, title="Folio", theme_name="sage", font_size_name="normal"):
     return buf
 
 
-def make_docx(text, title="Folio", theme_name="sage", font_size_name="normal"):
-    theme = THEMES.get(theme_name, THEMES["sage"])
+def make_docx(text, title=None, theme_name="paper", font_size_name="normal"):
+    """title is deliberately unused by default — see make_pdf for why:
+    the app's own name should never appear on an exported file.
+
+    Uses Georgia rather than the preview's actual Literata — Georgia is
+    a serif pre-installed on virtually every Windows and Mac system, so
+    it reliably renders as a real serif for anyone opening the file.
+    Literata would only display correctly for someone who happens to
+    have that specific font installed; naming it without embedding it
+    would silently fall back to something else on most machines."""
+    theme = THEMES.get(theme_name, THEMES["paper"])
     base_size = FONT_SIZES.get(font_size_name, FONT_SIZES["normal"])
     doc = Document()
+
+    # Set the document's base style to Georgia so normal body text
+    # (paragraphs added without an explicit run font) uses it too.
+    normal_style = doc.styles["Normal"]
+    normal_style.font.name = "Georgia"
+    normal_style.font.size = Pt(base_size)
 
     def _rgb(hexcolor):
         h = hexcolor.hexval()[2:] if hasattr(hexcolor, "hexval") else str(hexcolor)
@@ -609,9 +660,11 @@ def make_docx(text, title="Folio", theme_name="sage", font_size_name="normal"):
     secondary_rgb = _rgb(theme["secondary"])
     text_rgb = _rgb(theme["text"])
 
-    title_p = doc.add_heading(title, level=0)
-    for run in title_p.runs:
-        run.font.color.rgb = primary_rgb
+    if title:
+        title_p = doc.add_heading(title, level=0)
+        for run in title_p.runs:
+            run.font.color.rgb = primary_rgb
+            run.font.name = "Georgia"
 
     for para in text.split("\n\n"):
         para = para.strip()
@@ -624,11 +677,15 @@ def make_docx(text, title="Folio", theme_name="sage", font_size_name="normal"):
                 hdr_cells = table.rows[0].cells
                 for i, val in enumerate(content[0]):
                     hdr_cells[i].text = val
+                    for run in hdr_cells[i].paragraphs[0].runs:
+                        run.font.name = "Georgia"
                 for row in content[1:]:
                     cells = table.add_row().cells
                     for i, val in enumerate(row):
                         if i < len(cells):
                             cells[i].text = val
+                            for run in cells[i].paragraphs[0].runs:
+                                run.font.name = "Georgia"
                 doc.add_paragraph("")
                 continue
 
@@ -640,6 +697,7 @@ def make_docx(text, title="Folio", theme_name="sage", font_size_name="normal"):
                 for run in heading.runs:
                     run.font.color.rgb = secondary_rgb
                     run.font.size = Pt(base_size + 2.5)
+                    run.font.name = "Georgia"
                 body_lines = rest
             else:
                 body_lines = lines
@@ -649,11 +707,113 @@ def make_docx(text, title="Folio", theme_name="sage", font_size_name="normal"):
                 run = p.add_run(body_text)
                 run.font.size = Pt(base_size)
                 run.font.color.rgb = text_rgb
+                run.font.name = "Georgia"
 
     buf = io.BytesIO()
     doc.save(buf)
     buf.seek(0)
     return buf
+
+
+# --- File upload: bring notes in as they actually exist ---------------
+# Real feedback: notes are often a Word file, a PDF, or a photo of
+# handwriting, not something already typed or pasted. This extracts
+# plain text from each, then hands it to the exact same pipeline as
+# text that was typed directly — nothing downstream needs to know or
+# care where the text came from.
+
+def _extract_pdf_text(file_bytes):
+    from pypdf import PdfReader
+    reader = PdfReader(io.BytesIO(file_bytes))
+    parts = []
+    for page in reader.pages:
+        page_text = page.extract_text() or ""
+        if page_text.strip():
+            parts.append(page_text)
+    return "\n\n".join(parts)
+
+
+def _extract_docx_text(file_bytes):
+    d = Document(io.BytesIO(file_bytes))
+    parts = [p.text for p in d.paragraphs if p.text.strip()]
+    return "\n\n".join(parts)
+
+
+def _extract_image_text(file_bytes, file_type):
+    """Uses Claude's own vision capability to transcribe a photo — this
+    covers real handwriting, not just clean typed text, which a plain
+    OCR library typically can't do reliably."""
+    media_type = "image/png" if file_type == "png" else "image/jpeg"
+    b64 = base64.standard_b64encode(file_bytes).decode("ascii")
+    r = client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=4000,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}},
+                {"type": "text", "text": (
+                    "Transcribe every word of handwritten or printed text visible in "
+                    "this image, exactly as written. Do not summarise, explain, correct "
+                    "spelling, or add anything. If a word is illegible, write "
+                    "[illegible] in its place. Output only the transcribed text — no "
+                    "commentary, no greeting, nothing else."
+                )},
+            ],
+        }],
+    )
+    return r.content[0].text
+
+
+@app.route("/extract-text", methods=["POST"])
+def extract_text():
+    if _rate_limited():
+        return jsonify({
+            "error": "Too many requests right now. Try again in a little while."
+        }), 429
+
+    data = request.json or {}
+    file_data_b64 = data.get("file_data") or ""
+    file_type = (data.get("file_type") or "").strip().lower()
+
+    if not file_data_b64:
+        return jsonify({"error": "No file received."}), 400
+
+    try:
+        file_bytes = base64.b64decode(file_data_b64)
+    except Exception:
+        return jsonify({"error": "Could not read that file."}), 400
+
+    # 20MB cap on the raw file — generous for a document or a phone
+    # photo, small enough to keep this fast and cheap.
+    if len(file_bytes) > 20 * 1024 * 1024:
+        return jsonify({"error": "That file is too large (over 20MB)."}), 400
+
+    try:
+        if file_type == "pdf":
+            text = _extract_pdf_text(file_bytes)
+        elif file_type == "docx":
+            text = _extract_docx_text(file_bytes)
+        elif file_type in ("png", "jpg", "jpeg"):
+            text = _extract_image_text(file_bytes, file_type)
+        else:
+            return jsonify({"error": "Use a PDF, Word file, or a photo (jpg/png)."}), 400
+    except anthropic.APIError as e:
+        print(f"[extract-text] Anthropic API error: {e}", flush=True)
+        return jsonify({"error": "Could not read that photo right now. Try again."}), 502
+    except Exception:
+        import traceback
+        print("[extract-text] Unhandled exception:", flush=True)
+        traceback.print_exc()
+        return jsonify({"error": "Could not read that file. Try pasting the text instead."}), 500
+
+    if not text or not text.strip():
+        return jsonify({"error": "Couldn't find any text in that file."}), 400
+
+    if len(text) > MAX_STUDENT_NOTES_CHARS:
+        text = text[:MAX_STUDENT_NOTES_CHARS]
+
+    return jsonify({"text": text.strip()})
 
 
 @app.route("/notes.html")
@@ -778,7 +938,7 @@ def export_notes():
     data = request.json or {}
     text = (data.get("text") or "").strip()
     export_format = (data.get("format") or "pdf").strip().lower()
-    theme_name = (data.get("theme") or "sage").strip().lower()
+    theme_name = (data.get("theme") or "paper").strip().lower()
     font_size_name = (data.get("font_size") or "normal").strip().lower()
 
     if not text:
@@ -791,7 +951,7 @@ def export_notes():
                 buf,
                 mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 as_attachment=True,
-                download_name="folio.docx",
+                download_name="tidy.docx",
             )
         else:
             buf = make_pdf(text, theme_name=theme_name, font_size_name=font_size_name)
@@ -799,7 +959,7 @@ def export_notes():
                 buf,
                 mimetype="application/pdf",
                 as_attachment=True,
-                download_name="folio.pdf",
+                download_name="tidy.pdf",
             )
     except Exception:
         import traceback
