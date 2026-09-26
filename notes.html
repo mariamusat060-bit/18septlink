@@ -18,12 +18,15 @@
     --ink-muted: #5B6270;
     --teal: #2F6F73;
     --teal-light: #6B9C9F;
+    --teal-glow: rgba(47,111,115,0.25);
     --highlight: #EEF3C7;
     --before-text: #6E7280;
     --terracotta: #C0654A;
     --pdf-dot: #B0453A;
     --word-dot: #3A5FA0;
     --border: #E3DFD5;
+    --ghost: #EDEAE3;
+    --ghost-strong: #E3DFD5;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -36,6 +39,8 @@
       --before-text: #9C9890;
       --terracotta: #D97A5F;
       --border: #3A382F;
+      --ghost: #2A2925;
+      --ghost-strong: #333129;
     }
   }
   body {
@@ -70,7 +75,7 @@
   p.sub mark {
     background: var(--highlight);
     color: inherit;
-    padding: 0 3px;
+    padding: 0 2px;
     border-radius: 3px;
   }
   .columns {
@@ -91,12 +96,12 @@
     border: 1px solid var(--border);
     border-radius: 14px;
     color: var(--ink);
+    outline: none;
   }
-  /* Notes box: paper, not a flat gray form field — a soft shadow and
-     faint ruled lines, so pasting notes feels like putting them on a
-     desk. Text stays a touch muted so it still reads as "raw", the
-     way it did before, just expressed through tone rather than a
-     dull gray box. */
+  textarea:focus, input[type=text]:focus, select:focus {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px var(--teal-glow);
+  }
   #notes {
     background: #fff;
     background-image: repeating-linear-gradient(
@@ -117,7 +122,13 @@
   .field-caption {
     font-size: 12px;
     color: var(--ink-muted);
-    margin: 0 0 14px 2px;
+    margin: 0 0 16px 2px;
+  }
+  .field-caption .upload-link {
+    color: var(--teal);
+    text-decoration: underline;
+    cursor: pointer;
+    font-style: normal;
   }
   label.field-label {
     display: block;
@@ -126,15 +137,37 @@
     color: var(--ink-muted);
     margin: 0 0 6px 0;
   }
-  .upload-row {
+  /* Quick-instruction chips, replacing a bare text field as the
+     default way to say what to do with the notes. */
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     margin: 0 0 16px 0;
   }
-  .upload-link {
+  .chip {
+    font-family: inherit;
     font-size: 13px;
-    color: var(--teal);
-    text-decoration: underline;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--ink-muted);
     cursor: pointer;
   }
+  @media (prefers-color-scheme: dark) {
+    .chip { background: #242320; }
+  }
+  .chip.selected {
+    background: var(--teal);
+    color: #fff;
+    border-color: var(--teal);
+  }
+  .chip.quiet {
+    background: transparent;
+    border-style: dashed;
+  }
+  #customInstructionRow { display: none; margin: -6px 0 16px 0; }
   button {
     font-family: inherit;
     font-size: 15px;
@@ -162,15 +195,37 @@
   }
   #status { font-size: 14px; color: var(--teal); margin-top: 10px; min-height: 18px; }
   #status.error { color: var(--terracotta); }
-  #draftBox {
-    margin-top: 20px;
-    transition: opacity 0.2s ease;
+
+  /* The "ghost" document — shown before a draft exists, so the right
+     side reads as a page waiting to be filled, not an empty box. */
+  #ghostSheet {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    min-height: 340px;
   }
-  #draftBox.disabled {
-    opacity: 0.45;
-    pointer-events: none;
+  @media (prefers-color-scheme: dark) { #ghostSheet { background: #242320; } }
+  .ghost-line {
+    height: 10px;
+    background: var(--ghost);
+    border-radius: 4px;
+    margin-bottom: 12px;
   }
+  .ghost-line.heading {
+    height: 16px;
+    width: 42%;
+    background: var(--ghost-strong);
+    margin-bottom: 20px;
+  }
+  .ghost-line.w1 { width: 94%; }
+  .ghost-line.w2 { width: 86%; }
+  .ghost-line.w3 { width: 68%; }
+  .ghost-line.w4 { width: 91%; }
+  .ghost-line.w5 { width: 55%; margin-bottom: 0; }
+
   #draftText {
+    display: none;
     width: 100%;
     min-height: 340px;
     font-family: "Literata", Georgia, serif;
@@ -190,23 +245,30 @@
   #draftText.reveal {
     background: var(--highlight);
   }
+  /* Hidden entirely until a draft exists — not just dimmed. */
+  #refineSection { display: none; margin-top: 10px; }
   .refine-row {
     display: flex;
     gap: 10px;
-    margin-top: 10px;
   }
   .refine-row input { flex: 1; }
   .settings-row {
     display: flex;
-    gap: 10px;
+    gap: 18px;
     margin-top: 16px;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: flex-end;
+  }
+  .setting-group { display: flex; flex-direction: column; gap: 4px; }
+  .setting-group label {
+    font-size: 11px;
+    color: var(--ink-muted);
+    font-weight: 500;
   }
   .export-buttons {
     display: flex;
     gap: 10px;
-    margin-top: 10px;
+    margin-top: 16px;
   }
   .export-buttons button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
   .dot {
@@ -225,6 +287,7 @@
     border-radius: 12px;
     background: #fff;
     color: var(--ink);
+    outline: none;
   }
   @media (prefers-color-scheme: dark) {
     select { background: #242320; }
@@ -243,51 +306,108 @@
   <div class="col">
     <label class="field-label">Your notes</label>
     <textarea id="notes" rows="10" placeholder="mtg w/ Sam &#8594; budget?? due fri" autofocus></textarea>
-    <div class="field-caption">Works well up to about 30 pages at a time.</div>
+    <p class="field-caption">
+      Works well up to about 30 pages &middot;
+      <span class="upload-link" onclick="document.getElementById('fileInput').click()">or drop a file (PDF, Word, photo)</span>
+    </p>
+    <input type="file" id="fileInput" accept=".pdf,.docx,.png,.jpg,.jpeg" style="display:none" onchange="handleFile(this.files[0])" />
 
-    <div class="upload-row">
-      <span class="upload-link" onclick="document.getElementById('fileInput').click()">or drop a file — PDF, Word, or a photo</span>
-      <input type="file" id="fileInput" accept=".pdf,.docx,.png,.jpg,.jpeg" style="display:none" onchange="handleFile(this.files[0])" />
+    <label class="field-label">What to do with them</label>
+    <div class="chip-row" id="chipRow">
+      <button type="button" class="chip selected" data-key="keep" onclick="toggleChip('keep', this)">Keep everything</button>
+      <button type="button" class="chip" data-key="shorter" onclick="toggleChip('shorter', this)">Shorter</button>
+      <button type="button" class="chip" data-key="action" onclick="toggleChip('action', this)">Action items</button>
+      <button type="button" class="chip" data-key="practice" onclick="toggleChip('practice', this)">Practice questions</button>
+      <button type="button" class="chip quiet" onclick="toggleChip('custom', this)">+ something else</button>
+    </div>
+    <div id="customInstructionRow">
+      <input type="text" id="customInstruction" placeholder="say what you want" />
     </div>
 
-    <label class="field-label">What to do with them (optional)</label>
-    <input type="text" id="instructions" placeholder="e.g. keep everything, add 5 practice questions" />
     <button id="goBtn" class="full" onclick="go()">Tidy it.</button>
     <p class="hint-line">Editable draft &middot; Export to PDF or Word</p>
     <div id="status"></div>
   </div>
 
   <div class="col" id="draftCol">
-    <div id="draftBox" class="disabled">
-      <label class="field-label">Your draft — edit it directly, or ask for a change below</label>
-      <textarea id="draftText" placeholder="Your draft will appear here once you generate it" disabled></textarea>
+    <label class="field-label">Your draft</label>
 
+    <div id="ghostSheet">
+      <div class="ghost-line heading"></div>
+      <div class="ghost-line w1"></div>
+      <div class="ghost-line w2"></div>
+      <div class="ghost-line w3"></div>
+      <div class="ghost-line heading" style="margin-top:20px;"></div>
+      <div class="ghost-line w4"></div>
+      <div class="ghost-line w5"></div>
+    </div>
+
+    <textarea id="draftText" placeholder="Your draft will appear here once you generate it"></textarea>
+
+    <div id="refineSection">
       <div class="refine-row">
-        <input type="text" id="refineInput" placeholder="e.g. make the memory section shorter" disabled />
-        <button class="secondary" id="refineBtn" onclick="refine()" disabled>Refine</button>
+        <input type="text" id="refineInput" placeholder="e.g. make the memory section shorter" />
+        <button class="secondary" id="refineBtn" onclick="refine()">Refine</button>
       </div>
+    </div>
 
-      <div class="settings-row">
+    <div class="settings-row">
+      <div class="setting-group">
+        <label>Style</label>
         <select id="themeSelect" disabled>
           <option value="paper">Paper &amp; Ink</option>
           <option value="bw">Black &amp; White</option>
         </select>
+      </div>
+      <div class="setting-group">
+        <label>Size</label>
         <select id="fontSelect" disabled>
-          <option value="normal">Normal text</option>
-          <option value="large">Larger text</option>
+          <option value="normal">Normal</option>
+          <option value="large">Larger</option>
         </select>
       </div>
+    </div>
 
-      <div class="export-buttons">
-        <button id="exportPdfBtn" onclick="exportAs('pdf')" disabled><span class="dot pdf"></span>Export PDF</button>
-        <button class="secondary" id="exportWordBtn" onclick="exportAs('word')" disabled><span class="dot word"></span>Export Word</button>
-      </div>
+    <div class="export-buttons">
+      <button id="exportPdfBtn" onclick="exportAs('pdf')" disabled><span class="dot pdf"></span>Export PDF</button>
+      <button class="secondary" id="exportWordBtn" onclick="exportAs('word')" disabled><span class="dot word"></span>Export Word</button>
     </div>
   </div>
 
 </div>
 
 <script>
+const chipInstructions = {
+  keep: "keep everything",
+  shorter: "make it shorter",
+  action: "pull out action items",
+  practice: "add 5 practice questions",
+};
+let selectedChips = new Set(["keep"]);
+
+function toggleChip(key, el) {
+  if (key === "custom") {
+    const row = document.getElementById("customInstructionRow");
+    row.style.display = row.style.display === "block" ? "none" : "block";
+    if (row.style.display === "block") document.getElementById("customInstruction").focus();
+    return;
+  }
+  if (selectedChips.has(key)) {
+    selectedChips.delete(key);
+    el.classList.remove("selected");
+  } else {
+    selectedChips.add(key);
+    el.classList.add("selected");
+  }
+}
+
+function buildInstructions() {
+  const parts = [...selectedChips].map((k) => chipInstructions[k]);
+  const custom = document.getElementById("customInstruction").value.trim();
+  if (custom) parts.push(custom);
+  return parts.join(", ");
+}
+
 function sanitizeForRequest(text) {
   let clean = text.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, "");
   clean = clean.replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "");
@@ -295,12 +415,10 @@ function sanitizeForRequest(text) {
   return clean;
 }
 
-function enableDraftBox() {
-  const draftBox = document.getElementById("draftBox");
-  draftBox.classList.remove("disabled");
-  document.getElementById("draftText").disabled = false;
-  document.getElementById("refineInput").disabled = false;
-  document.getElementById("refineBtn").disabled = false;
+function showDraft() {
+  document.getElementById("ghostSheet").style.display = "none";
+  document.getElementById("draftText").style.display = "block";
+  document.getElementById("refineSection").style.display = "block";
   document.getElementById("themeSelect").disabled = false;
   document.getElementById("fontSelect").disabled = false;
   document.getElementById("exportPdfBtn").disabled = false;
@@ -335,9 +453,7 @@ async function handleFile(file) {
     return;
   }
 
-  status.innerText = ext === "pdf" || ext === "docx"
-    ? "Reading your file..."
-    : "Reading your photo...";
+  status.innerText = ext === "pdf" || ext === "docx" ? "Reading your file..." : "Reading your photo...";
 
   try {
     const base64 = await fileToBase64(file);
@@ -355,9 +471,7 @@ async function handleFile(file) {
     }
 
     const notes = document.getElementById("notes");
-    notes.value = notes.value.trim()
-      ? notes.value.trim() + "\n\n" + d.text
-      : d.text;
+    notes.value = notes.value.trim() ? notes.value.trim() + "\n\n" + d.text : d.text;
     status.innerText = "Added from " + file.name + ".";
   } catch (e) {
     status.innerText = "Could not reach the server. Try again.";
@@ -367,7 +481,7 @@ async function handleFile(file) {
 
 async function go() {
   const notes = sanitizeForRequest(document.getElementById("notes").value.trim());
-  const instructions = sanitizeForRequest(document.getElementById("instructions").value.trim());
+  const instructions = sanitizeForRequest(buildInstructions());
   const status = document.getElementById("status");
   const btn = document.getElementById("goBtn");
 
@@ -398,11 +512,11 @@ async function go() {
     }
 
     document.getElementById("draftText").value = d.text || "";
-    enableDraftBox();
+    showDraft();
     flashHighlight();
     status.innerText = d.warning ? d.warning : "Draft ready — edit it, or export when you're happy.";
     if (d.warning) status.classList.add("error");
-    document.getElementById("draftBox").scrollIntoView({ behavior: "smooth" });
+    document.getElementById("draftText").scrollIntoView({ behavior: "smooth" });
   } catch (e) {
     status.innerText = "Could not reach the server. Try again.";
     status.classList.add("error");
