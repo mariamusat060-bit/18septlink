@@ -90,8 +90,12 @@
   .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
   #status { font-size: 14px; color: var(--sage); margin-top: 10px; min-height: 18px; }
   #draftBox {
-    display: none;
     margin-top: 20px;
+    transition: opacity 0.2s ease;
+  }
+  #draftBox.disabled {
+    opacity: 0.45;
+    pointer-events: none;
   }
   #draftText {
     width: 100%;
@@ -133,6 +137,12 @@
     background: #fff;
     color: var(--ink);
   }
+  /* Loading state for Refine — visible color/text change instead of
+     silence for the first few seconds, per real feedback. */
+  button.loading {
+    background: var(--sage-light);
+    cursor: default;
+  }
   footer { font-size: 12px; color: var(--muted); margin-top: 40px; text-align: center; }
 </style>
 </head>
@@ -151,29 +161,29 @@
   </div>
 
   <div class="col" id="draftCol">
-    <div id="draftBox">
+    <div id="draftBox" class="disabled">
       <label class="field-label">Your draft — edit it directly, or ask for a change below</label>
-      <textarea id="draftText"></textarea>
+      <textarea id="draftText" placeholder="Your draft will appear here once you generate it" disabled></textarea>
 
       <div class="refine-row">
-        <input type="text" id="refineInput" placeholder="e.g. make the memory section shorter" />
-        <button class="secondary" onclick="refine()">Refine</button>
+        <input type="text" id="refineInput" placeholder="e.g. make the memory section shorter" disabled />
+        <button class="secondary" id="refineBtn" onclick="refine()" disabled>Refine</button>
       </div>
 
       <div class="settings-row">
-        <select id="themeSelect">
+        <select id="themeSelect" disabled>
           <option value="sage">Sage &amp; Parchment</option>
           <option value="bw">Black &amp; White</option>
         </select>
-        <select id="fontSelect">
+        <select id="fontSelect" disabled>
           <option value="normal">Normal text</option>
           <option value="large">Larger text</option>
         </select>
       </div>
 
       <div class="export-buttons">
-        <button onclick="exportAs('pdf')">Export PDF</button>
-        <button class="secondary" onclick="exportAs('word')">Export Word</button>
+        <button id="exportPdfBtn" onclick="exportAs('pdf')" disabled>Export PDF</button>
+        <button class="secondary" id="exportWordBtn" onclick="exportAs('word')" disabled>Export Word</button>
       </div>
     </div>
   </div>
@@ -190,12 +200,23 @@ function sanitizeForRequest(text) {
   return clean;
 }
 
+function enableDraftBox() {
+  const draftBox = document.getElementById("draftBox");
+  draftBox.classList.remove("disabled");
+  document.getElementById("draftText").disabled = false;
+  document.getElementById("refineInput").disabled = false;
+  document.getElementById("refineBtn").disabled = false;
+  document.getElementById("themeSelect").disabled = false;
+  document.getElementById("fontSelect").disabled = false;
+  document.getElementById("exportPdfBtn").disabled = false;
+  document.getElementById("exportWordBtn").disabled = false;
+}
+
 async function go() {
   const notes = sanitizeForRequest(document.getElementById("notes").value.trim());
   const instructions = sanitizeForRequest(document.getElementById("instructions").value.trim());
   const status = document.getElementById("status");
   const btn = document.getElementById("goBtn");
-  const draftBox = document.getElementById("draftBox");
 
   status.innerText = "";
 
@@ -221,9 +242,9 @@ async function go() {
     }
 
     document.getElementById("draftText").value = d.text || "";
-    draftBox.style.display = "block";
+    enableDraftBox();
     status.innerText = d.warning ? d.warning : "Draft ready — edit it, or export when you're happy.";
-    draftBox.scrollIntoView({ behavior: "smooth" });
+    document.getElementById("draftBox").scrollIntoView({ behavior: "smooth" });
   } catch (e) {
     status.innerText = "Could not reach the server. Try again.";
   } finally {
@@ -236,6 +257,7 @@ async function refine() {
   const draft = document.getElementById("draftText").value.trim();
   const instruction = sanitizeForRequest(document.getElementById("refineInput").value.trim());
   const status = document.getElementById("status");
+  const refineBtn = document.getElementById("refineBtn");
 
   if (!draft) {
     status.innerText = "Generate a draft first.";
@@ -246,7 +268,12 @@ async function refine() {
     return;
   }
 
-  status.innerText = "Refining...";
+  // Visible loading state — button changes color and text immediately,
+  // instead of the person watching nothing happen for a few seconds.
+  refineBtn.disabled = true;
+  refineBtn.classList.add("loading");
+  refineBtn.innerText = "Refining...";
+  status.innerText = "";
 
   try {
     const r = await fetch("/refine-notes", {
@@ -266,6 +293,10 @@ async function refine() {
     status.innerText = "Updated.";
   } catch (e) {
     status.innerText = "Could not reach the server. Try again.";
+  } finally {
+    refineBtn.disabled = false;
+    refineBtn.classList.remove("loading");
+    refineBtn.innerText = "Refine";
   }
 }
 
