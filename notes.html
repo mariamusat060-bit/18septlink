@@ -102,6 +102,10 @@
     border-color: var(--teal);
     box-shadow: 0 0 0 3px var(--teal-glow);
   }
+
+  /* Notes box: ruled paper, with a paperclip and mic tucked inside the
+     box, and a drop highlight when a file is dragged over it. */
+  .notes-wrap { position: relative; }
   #notes {
     background: #fff;
     background-image: repeating-linear-gradient(
@@ -112,19 +116,81 @@
     color: var(--before-text);
     font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
     box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 6px 16px rgba(0,0,0,0.05);
+    padding-bottom: 48px;
+    margin-bottom: 0;
   }
   @media (prefers-color-scheme: dark) {
     #notes { background: #242320; background-image: none; }
   }
   #notes:focus { color: var(--ink); }
-  textarea { resize: vertical; margin-bottom: 4px; line-height: 27px; padding-top: 13px; }
+  .notes-wrap.dragover #notes {
+    border: 1.5px dashed var(--teal);
+    box-shadow: 0 0 0 3px var(--teal-glow);
+  }
+  .drop-hint {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: rgba(250,248,244,0.82);
+    color: var(--teal);
+    font-weight: 600;
+    font-size: 15px;
+    pointer-events: none;
+  }
+  @media (prefers-color-scheme: dark) {
+    .drop-hint { background: rgba(28,27,25,0.82); }
+  }
+  .notes-wrap.dragover .drop-hint { display: flex; }
+  .box-tools {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    display: flex;
+    gap: 6px;
+  }
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--ink-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  @media (prefers-color-scheme: dark) { .icon-btn { background: #242320; } }
+  .icon-btn:hover { color: var(--teal); border-color: var(--teal); }
+  .icon-btn.on {
+    background: var(--terracotta);
+    border-color: var(--terracotta);
+    color: #fff;
+  }
+  .icon-btn svg { width: 17px; height: 17px; }
+
+  textarea { resize: vertical; line-height: 27px; padding-top: 13px; }
   input[type=text]::placeholder, textarea::placeholder { color: var(--ink-muted); font-style: italic; }
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--ink-muted);
+    margin: 6px 2px 0 2px;
+    min-height: 16px;
+  }
+  .meta-row .over { color: var(--terracotta); font-weight: 500; }
   .field-caption {
     font-size: 12px;
     color: var(--ink-muted);
-    margin: 0 0 16px 2px;
+    margin: 4px 0 16px 2px;
   }
-  .field-caption .upload-link {
+  .upload-link {
     color: var(--teal);
     text-decoration: underline;
     cursor: pointer;
@@ -137,8 +203,6 @@
     color: var(--ink-muted);
     margin: 0 0 6px 0;
   }
-  /* Quick-instruction chips, replacing a bare text field as the
-     default way to say what to do with the notes. */
   .chip-row {
     display: flex;
     flex-wrap: wrap;
@@ -148,25 +212,23 @@
   .chip {
     font-family: inherit;
     font-size: 13px;
+    font-weight: 500;
     padding: 8px 14px;
     border-radius: 999px;
     border: 1px solid var(--border);
     background: #fff;
     color: var(--ink-muted);
     cursor: pointer;
+    letter-spacing: 0;
   }
-  @media (prefers-color-scheme: dark) {
-    .chip { background: #242320; }
-  }
+  @media (prefers-color-scheme: dark) { .chip { background: #242320; } }
   .chip.selected {
     background: var(--teal);
     color: #fff;
     border-color: var(--teal);
   }
-  .chip.quiet {
-    background: transparent;
-    border-style: dashed;
-  }
+  .chip.selected::before { content: "\2713\00a0"; }
+  .chip.quiet { background: transparent; border-style: dashed; }
   #customInstructionRow { display: none; margin: -6px 0 16px 0; }
   button {
     font-family: inherit;
@@ -196,8 +258,6 @@
   #status { font-size: 14px; color: var(--teal); margin-top: 10px; min-height: 18px; }
   #status.error { color: var(--terracotta); }
 
-  /* The "ghost" document — shown before a draft exists, so the right
-     side reads as a page waiting to be filled, not an empty box. */
   #ghostSheet {
     background: #fff;
     border: 1px solid var(--border);
@@ -206,18 +266,8 @@
     min-height: 340px;
   }
   @media (prefers-color-scheme: dark) { #ghostSheet { background: #242320; } }
-  .ghost-line {
-    height: 10px;
-    background: var(--ghost);
-    border-radius: 4px;
-    margin-bottom: 12px;
-  }
-  .ghost-line.heading {
-    height: 16px;
-    width: 42%;
-    background: var(--ghost-strong);
-    margin-bottom: 20px;
-  }
+  .ghost-line { height: 10px; background: var(--ghost); border-radius: 4px; margin-bottom: 12px; }
+  .ghost-line.heading { height: 16px; width: 42%; background: var(--ghost-strong); margin-bottom: 20px; }
   .ghost-line.w1 { width: 94%; }
   .ghost-line.w2 { width: 86%; }
   .ghost-line.w3 { width: 68%; }
@@ -239,18 +289,10 @@
     resize: vertical;
     transition: background 0.6s ease;
   }
-  @media (prefers-color-scheme: dark) {
-    #draftText { background: #242320; }
-  }
-  #draftText.reveal {
-    background: var(--highlight);
-  }
-  /* Hidden entirely until a draft exists — not just dimmed. */
+  @media (prefers-color-scheme: dark) { #draftText { background: #242320; } }
+  #draftText.reveal { background: var(--highlight); }
   #refineSection { display: none; margin-top: 10px; }
-  .refine-row {
-    display: flex;
-    gap: 10px;
-  }
+  .refine-row { display: flex; gap: 10px; }
   .refine-row input { flex: 1; }
   .settings-row {
     display: flex;
@@ -260,23 +302,10 @@
     align-items: flex-end;
   }
   .setting-group { display: flex; flex-direction: column; gap: 4px; }
-  .setting-group label {
-    font-size: 11px;
-    color: var(--ink-muted);
-    font-weight: 500;
-  }
-  .export-buttons {
-    display: flex;
-    gap: 10px;
-    margin-top: 16px;
-  }
+  .setting-group label { font-size: 11px; color: var(--ink-muted); font-weight: 500; }
+  .export-buttons { display: flex; gap: 10px; margin-top: 16px; }
   .export-buttons button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
-  .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
   .dot.pdf { background: var(--pdf-dot); }
   .dot.word { background: var(--word-dot); }
   select {
@@ -289,13 +318,8 @@
     color: var(--ink);
     outline: none;
   }
-  @media (prefers-color-scheme: dark) {
-    select { background: #242320; }
-  }
-  button.loading {
-    background: var(--teal-light);
-    cursor: default;
-  }
+  @media (prefers-color-scheme: dark) { select { background: #242320; } }
+  button.loading { background: var(--teal-light); cursor: default; }
 </style>
 </head>
 <body>
@@ -305,19 +329,36 @@
 <div class="columns">
   <div class="col">
     <label class="field-label">Your notes</label>
-    <textarea id="notes" rows="10" placeholder="mtg w/ Sam &#8594; budget?? due fri" autofocus></textarea>
+    <div class="notes-wrap" id="notesWrap">
+      <textarea id="notes" rows="10" autocomplete="off" placeholder="mtg w/ Sam &#8594; budget?? due fri" autofocus></textarea>
+      <div class="drop-hint">Drop a file to add it</div>
+      <div class="box-tools">
+        <button type="button" class="icon-btn" id="micBtn" title="Speak your notes" aria-label="Speak your notes" onclick="toggleVoice()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+        </button>
+        <button type="button" class="icon-btn" title="Add a file or a photo" aria-label="Add a file or a photo" onclick="document.getElementById('fileInput').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5l-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l9-9a3.7 3.7 0 0 1 5.2 5.2l-9 9a1.8 1.8 0 0 1-2.6-2.6l8.4-8.4"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="meta-row">
+      <span id="counter">0 words</span>
+      <span id="saveNote"></span>
+    </div>
     <p class="field-caption">
       Works well up to about 30 pages &middot;
-      <span class="upload-link" onclick="document.getElementById('fileInput').click()">or drop a file (PDF, Word, photo)</span>
+      <span class="upload-link" onclick="document.getElementById('fileInput').click()">or drop a file (PDF, Word, or a photo of handwritten notes)</span>
     </p>
-    <input type="file" id="fileInput" accept=".pdf,.docx,.png,.jpg,.jpeg" style="display:none" onchange="handleFile(this.files[0])" />
+    <input type="file" id="fileInput" accept=".pdf,.docx,.png,.jpg,.jpeg" style="display:none" onchange="handleFile(this.files[0]); this.value='';" />
 
     <label class="field-label">What to do with them</label>
     <div class="chip-row" id="chipRow">
-      <button type="button" class="chip selected" data-key="keep" onclick="toggleChip('keep', this)">Keep everything</button>
-      <button type="button" class="chip" data-key="shorter" onclick="toggleChip('shorter', this)">Shorter</button>
-      <button type="button" class="chip" data-key="action" onclick="toggleChip('action', this)">Action items</button>
-      <button type="button" class="chip" data-key="practice" onclick="toggleChip('practice', this)">Practice questions</button>
+      <button type="button" class="chip selected" data-key="keep" aria-pressed="true" onclick="toggleChip('keep', this)">Keep everything</button>
+      <button type="button" class="chip" data-key="shorter" aria-pressed="false" onclick="toggleChip('shorter', this)">Shorter</button>
+      <button type="button" class="chip" data-key="action" aria-pressed="false" onclick="toggleChip('action', this)">Action items</button>
+      <button type="button" class="chip" data-key="practice" aria-pressed="false" onclick="toggleChip('practice', this)">Practice questions</button>
+      <button type="button" class="chip" data-key="cards" aria-pressed="false" onclick="toggleChip('cards', this)">Flashcards</button>
+      <button type="button" class="chip" data-key="email" aria-pressed="false" onclick="toggleChip('email', this)">Email draft</button>
       <button type="button" class="chip quiet" onclick="toggleChip('custom', this)">+ something else</button>
     </div>
     <div id="customInstructionRow">
@@ -326,6 +367,7 @@
 
     <button id="goBtn" class="full" onclick="go()">Tidy it.</button>
     <p class="hint-line">Editable draft &middot; Export to PDF or Word</p>
+    <p class="hint-line">Tidy doesn't save your notes on its server. They're sent to Claude to be tidied.</p>
     <div id="status"></div>
   </div>
 
@@ -342,7 +384,7 @@
       <div class="ghost-line w5"></div>
     </div>
 
-    <textarea id="draftText" placeholder="Your draft will appear here once you generate it"></textarea>
+    <textarea id="draftText" autocomplete="off" placeholder="Your draft will appear here once you generate it"></textarea>
 
     <div id="refineSection">
       <div class="refine-row">
@@ -377,36 +419,14 @@
 </div>
 
 <script>
-const chipInstructions = {
-  keep: "keep everything",
-  shorter: "make it shorter",
-  action: "pull out action items",
-  practice: "add 5 practice questions",
-};
-let selectedChips = new Set(["keep"]);
+const MAX_CHARS = 120000;
+const KEY_NOTES = "tidy.notes";
+const KEY_DRAFT = "tidy.draft";
 
-function toggleChip(key, el) {
-  if (key === "custom") {
-    const row = document.getElementById("customInstructionRow");
-    row.style.display = row.style.display === "block" ? "none" : "block";
-    if (row.style.display === "block") document.getElementById("customInstruction").focus();
-    return;
-  }
-  if (selectedChips.has(key)) {
-    selectedChips.delete(key);
-    el.classList.remove("selected");
-  } else {
-    selectedChips.add(key);
-    el.classList.add("selected");
-  }
-}
-
-function buildInstructions() {
-  const parts = [...selectedChips].map((k) => chipInstructions[k]);
-  const custom = document.getElementById("customInstruction").value.trim();
-  if (custom) parts.push(custom);
-  return parts.join(", ");
-}
+/* ---------- small helpers ---------- */
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
 
 function sanitizeForRequest(text) {
   let clean = text.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, "");
@@ -415,22 +435,129 @@ function sanitizeForRequest(text) {
   return clean;
 }
 
+function suggestFilename(text) {
+  // Name the file after the first heading or line, never after the app.
+  const first = text.split("\n").map((s) => s.trim()).find((s) => s) || "";
+  const name = first
+    .replace(/:$/, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 50);
+  return name || "notes";
+}
+
+/* ---------- word / page counter ---------- */
+function updateCounter() {
+  const t = document.getElementById("notes").value;
+  const words = (t.trim().match(/\S+/g) || []).length;
+  const el = document.getElementById("counter");
+  if (t.length > MAX_CHARS) {
+    el.innerHTML = '<span class="over">' + words.toLocaleString() +
+      " words · over the limit, split it into two</span>";
+    return;
+  }
+  if (words === 0) { el.textContent = "0 words"; return; }
+  const pages = Math.max(1, Math.round(t.length / 3000));
+  el.textContent = words.toLocaleString() + " words · ~" + pages + (pages === 1 ? " page" : " pages");
+}
+
+/* ---------- autosave on this device ---------- */
+let saveTimer = null;
+function showSaved() {
+  const el = document.getElementById("saveNote");
+  el.innerHTML = 'Saved on this device · <span class="upload-link" onclick="clearSaved()">Clear</span>';
+}
+function saveNotesSoon() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    const v = document.getElementById("notes").value;
+    if (v.trim()) { lsSet(KEY_NOTES, v); showSaved(); } else { lsDel(KEY_NOTES); document.getElementById("saveNote").textContent = ""; }
+  }, 600);
+}
+function saveDraft() {
+  const v = document.getElementById("draftText").value;
+  if (v.trim()) { lsSet(KEY_DRAFT, v); showSaved(); }
+}
+function onNotesChanged() { updateCounter(); saveNotesSoon(); }
+
+function hideDraft() {
+  document.getElementById("ghostSheet").style.display = "block";
+  const d = document.getElementById("draftText");
+  d.style.display = "none"; d.value = "";
+  document.getElementById("refineSection").style.display = "none";
+  ["themeSelect", "fontSelect", "exportPdfBtn", "exportWordBtn"].forEach((id) => {
+    document.getElementById(id).disabled = true;
+  });
+}
+function clearSaved() {
+  lsDel(KEY_NOTES); lsDel(KEY_DRAFT);
+  document.getElementById("notes").value = "";
+  hideDraft();
+  updateCounter();
+  document.getElementById("saveNote").textContent = "";
+  document.getElementById("status").textContent = "";
+}
+
+/* ---------- chips ---------- */
+const chipInstructions = {
+  keep: "keep everything",
+  shorter: "make it shorter",
+  action: "pull out action items",
+  practice: "add 5 practice questions",
+  cards: "turn it into flashcards, each written as Q: question and A: answer",
+  email: "write it as a clear email draft",
+};
+// Options that can't sensibly be combined switch each other off.
+const conflicts = {
+  keep: ["shorter", "email", "cards"],
+  shorter: ["keep"],
+  email: ["keep", "cards"],
+  cards: ["keep", "email"],
+};
+let selectedChips = new Set(["keep"]);
+
+function setChip(key, on) {
+  const el = document.querySelector('.chip[data-key="' + key + '"]');
+  if (!el) return;
+  el.classList.toggle("selected", on);
+  el.setAttribute("aria-pressed", on ? "true" : "false");
+  if (on) selectedChips.add(key); else selectedChips.delete(key);
+}
+function toggleChip(key) {
+  if (key === "custom") {
+    const row = document.getElementById("customInstructionRow");
+    const open = row.style.display === "block";
+    row.style.display = open ? "none" : "block";
+    if (!open) document.getElementById("customInstruction").focus();
+    return;
+  }
+  const turningOn = !selectedChips.has(key);
+  setChip(key, turningOn);
+  if (turningOn) (conflicts[key] || []).forEach((k) => setChip(k, false));
+}
+function buildInstructions() {
+  const parts = [...selectedChips].map((k) => chipInstructions[k]);
+  const custom = document.getElementById("customInstruction").value.trim();
+  if (custom) parts.push(custom);
+  return parts.join(", ");
+}
+
+/* ---------- draft display ---------- */
 function showDraft() {
   document.getElementById("ghostSheet").style.display = "none";
   document.getElementById("draftText").style.display = "block";
   document.getElementById("refineSection").style.display = "block";
-  document.getElementById("themeSelect").disabled = false;
-  document.getElementById("fontSelect").disabled = false;
-  document.getElementById("exportPdfBtn").disabled = false;
-  document.getElementById("exportWordBtn").disabled = false;
+  ["themeSelect", "fontSelect", "exportPdfBtn", "exportWordBtn"].forEach((id) => {
+    document.getElementById(id).disabled = false;
+  });
 }
-
 function flashHighlight() {
-  const draftText = document.getElementById("draftText");
-  draftText.classList.add("reveal");
-  setTimeout(() => draftText.classList.remove("reveal"), 900);
+  const d = document.getElementById("draftText");
+  d.classList.add("reveal");
+  setTimeout(() => d.classList.remove("reveal"), 900);
 }
 
+/* ---------- files: click to pick, or drag onto the notes box ---------- */
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -446,14 +573,12 @@ async function handleFile(file) {
   status.classList.remove("error");
 
   const ext = file.name.split(".").pop().toLowerCase();
-  const allowed = ["pdf", "docx", "png", "jpg", "jpeg"];
-  if (!allowed.includes(ext)) {
+  if (!["pdf", "docx", "png", "jpg", "jpeg"].includes(ext)) {
     status.innerText = "Use a PDF, Word file, or a photo (jpg/png).";
     status.classList.add("error");
     return;
   }
-
-  status.innerText = ext === "pdf" || ext === "docx" ? "Reading your file..." : "Reading your photo...";
+  status.innerText = (ext === "pdf" || ext === "docx") ? "Reading your file..." : "Reading your photo...";
 
   try {
     const base64 = await fileToBase64(file);
@@ -463,15 +588,14 @@ async function handleFile(file) {
       body: JSON.stringify({ file_data: base64, file_type: ext, filename: file.name })
     });
     const d = await r.json();
-
     if (!r.ok) {
       status.innerText = d.error || "Could not read that file.";
       status.classList.add("error");
       return;
     }
-
     const notes = document.getElementById("notes");
     notes.value = notes.value.trim() ? notes.value.trim() + "\n\n" + d.text : d.text;
+    onNotesChanged();
     status.innerText = "Added from " + file.name + ".";
   } catch (e) {
     status.innerText = "Could not reach the server. Try again.";
@@ -479,6 +603,70 @@ async function handleFile(file) {
   }
 }
 
+(function setupDrop() {
+  const wrap = document.getElementById("notesWrap");
+  const hasFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+  ["dragenter", "dragover"].forEach((ev) => wrap.addEventListener(ev, (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    wrap.classList.add("dragover");
+  }));
+  wrap.addEventListener("dragleave", (e) => {
+    if (!wrap.contains(e.relatedTarget)) wrap.classList.remove("dragover");
+  });
+  wrap.addEventListener("drop", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    wrap.classList.remove("dragover");
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+})();
+
+/* ---------- voice: speak your notes ---------- */
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizer = null;
+let listening = false;
+
+function setMicUI(on) {
+  listening = on;
+  document.getElementById("micBtn").classList.toggle("on", on);
+  document.getElementById("micBtn").title = on ? "Stop" : "Speak your notes";
+}
+function toggleVoice() {
+  const status = document.getElementById("status");
+  if (!SpeechRec) return;
+  if (listening) { recognizer.stop(); return; }
+  recognizer = new SpeechRec();
+  recognizer.continuous = true;
+  recognizer.interimResults = false;
+  recognizer.lang = navigator.language || "en-US";
+  recognizer.onresult = (e) => {
+    const notes = document.getElementById("notes");
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        const piece = e.results[i][0].transcript.trim();
+        if (!piece) continue;
+        notes.value += (notes.value && !/\s$/.test(notes.value) ? " " : "") + piece;
+      }
+    }
+    onNotesChanged();
+  };
+  recognizer.onerror = (e) => {
+    status.classList.add("error");
+    status.innerText = e.error === "not-allowed"
+      ? "Microphone access is blocked. Allow it in your browser settings."
+      : "Couldn't hear that. Try again.";
+  };
+  recognizer.onend = () => setMicUI(false);
+  status.classList.remove("error");
+  status.innerText = "Listening...";
+  recognizer.start();
+  setMicUI(true);
+}
+if (!SpeechRec) document.getElementById("micBtn").style.display = "none";
+
+/* ---------- generate / refine / export ---------- */
 async function go() {
   const notes = sanitizeForRequest(document.getElementById("notes").value.trim());
   const instructions = sanitizeForRequest(buildInstructions());
@@ -493,6 +681,11 @@ async function go() {
     status.classList.add("error");
     return;
   }
+  if (notes.length > MAX_CHARS) {
+    status.innerText = "That's over the limit. Split it into two and tidy each part.";
+    status.classList.add("error");
+    return;
+  }
 
   btn.disabled = true;
   btn.innerText = "Working...";
@@ -504,16 +697,15 @@ async function go() {
       body: JSON.stringify({ notes, instructions, style: "tidy" })
     });
     const d = await r.json();
-
     if (!r.ok) {
       status.innerText = d.error || "Something went wrong.";
       status.classList.add("error");
       return;
     }
-
     document.getElementById("draftText").value = d.text || "";
     showDraft();
     flashHighlight();
+    saveDraft();
     status.innerText = d.warning ? d.warning : "Draft ready — edit it, or export when you're happy.";
     if (d.warning) status.classList.add("error");
     document.getElementById("draftText").scrollIntoView({ behavior: "smooth" });
@@ -533,7 +725,6 @@ async function refine() {
   const refineBtn = document.getElementById("refineBtn");
 
   status.classList.remove("error");
-
   if (!draft) {
     status.innerText = "Generate a draft first.";
     status.classList.add("error");
@@ -557,16 +748,15 @@ async function refine() {
       body: JSON.stringify({ draft, instruction })
     });
     const d = await r.json();
-
     if (!r.ok) {
       status.innerText = d.error || "Something went wrong.";
       status.classList.add("error");
       return;
     }
-
     document.getElementById("draftText").value = d.text || draft;
     document.getElementById("refineInput").value = "";
     flashHighlight();
+    saveDraft();
     status.innerText = "Updated.";
   } catch (e) {
     status.innerText = "Could not reach the server. Try again.";
@@ -585,13 +775,11 @@ async function exportAs(format) {
   const status = document.getElementById("status");
 
   status.classList.remove("error");
-
   if (!text) {
     status.innerText = "Nothing to export yet.";
     status.classList.add("error");
     return;
   }
-
   status.innerText = "Preparing your file...";
 
   try {
@@ -600,19 +788,17 @@ async function exportAs(format) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, format, theme, font_size: fontSize })
     });
-
     if (!r.ok) {
       const d = await r.json();
       status.innerText = d.error || "Could not create the file.";
       status.classList.add("error");
       return;
     }
-
     const blob = await r.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = format === "word" ? "tidy.docx" : "tidy.pdf";
+    a.download = suggestFilename(text) + (format === "word" ? ".docx" : ".pdf");
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -622,6 +808,21 @@ async function exportAs(format) {
     status.classList.add("error");
   }
 }
+
+/* ---------- start-up: restore what was saved on this device ---------- */
+document.getElementById("notes").addEventListener("input", onNotesChanged);
+document.getElementById("draftText").addEventListener("input", () => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveDraft, 600);
+});
+(function restore() {
+  const n = lsGet(KEY_NOTES);
+  const d = lsGet(KEY_DRAFT);
+  if (n) document.getElementById("notes").value = n;
+  if (d) { document.getElementById("draftText").value = d; showDraft(); }
+  updateCounter();
+  if (n || d) showSaved();
+})();
 </script>
 </body>
 </html>

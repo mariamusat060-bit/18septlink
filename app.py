@@ -416,7 +416,20 @@ starting with "Topic Name:" on its own line; a Practice Questions
 section (only if asked for) always comes last, always with that exact
 heading. Two different sets of notes run through this should visibly
 look like they belong to the same system, not like two different
-writing styles.
+writing styles. The one exception: if the instructions ask for a
+specific format (an email draft, or flashcards written as "Q:" and
+"A:" lines), use that format instead of topic sections, and still
+include everything from the notes.
+
+Mixed languages: if the notes mix languages, write the whole output in
+whichever language most of the notes are written in, unless the
+instructions name a language. Keep technical terms and proper names as
+they are.
+
+Chat pastes: if the notes were copied from a chat or call transcript,
+remove the timestamps and system lines (such as "[10:42 AM]" or "Sam
+joined the call"), but keep who said what, since the speaker is part of
+the content.
 
 Writing style — this matters as much as the content:
 Write in plain, direct, easy-to-read language. A real complaint about
