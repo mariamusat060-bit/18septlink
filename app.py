@@ -396,7 +396,10 @@ If something in the notes is unclear or incomplete, mark it visibly as
 such rather than silently smoothing it into something that sounds
 complete — write it followed by "[unclear from notes]" so the student
 can see exactly where you couldn't tell what they meant, instead of
-guessing and hiding that guess inside normal-sounding prose.
+guessing and hiding that guess inside normal-sounding prose. This
+includes shorthand and question marks: if the notes say "exam??", keep
+it as an open question, written as "Exam?" followed by "[unclear from
+notes]", rather than turning it into a stated fact like "Exam question".
 Follow the student's instructions exactly — if they ask for practice
 questions, add real questions based only on the content they gave you,
 clearly marked as a separate section at the end.
@@ -455,8 +458,10 @@ Header 1 | Header 2 | Header 3
 Row 1 value | Row 1 value | Row 1 value
 Row 2 value | Row 2 value | Row 2 value
 [/TABLE]
-Only use this for content that is genuinely tabular. Do not force
-ordinary prose into a table.
+Use a table whenever the notes compare two or more things on the same
+attributes (for example "high vs low involvement" described by cost,
+frequency and effort, or two theories compared point by point). Do not
+force ordinary prose, or a plain list of unrelated points, into a table.
 
 {style_instruction}
 
@@ -524,6 +529,16 @@ of what she actually wrote."""
 
 # --- Table parsing (shared by PDF and Word export) -------------------
 
+def _doc_title(text):
+    """Document title for file metadata, taken from the first line of the
+    text. Without this, PDF viewers show (and save under) "(anonymous)"."""
+    for line in text.split("\n"):
+        line = line.strip().rstrip(":").strip()
+        if line and not line.startswith("[TABLE]"):
+            return line[:80]
+    return "Notes"
+
+
 def _parse_blocks(text):
     """Split text into a sequence of ('text', content) and ('table', rows)
     blocks, based on [TABLE]...[/TABLE] markers."""
@@ -540,10 +555,21 @@ def _parse_blocks(text):
                 line = line.strip()
                 if not line:
                     continue
+                # Models often write rows as "| a | b |": drop the edge pipes
+                # so they don't become empty columns.
+                if line.startswith("|"):
+                    line = line[1:]
+                if line.endswith("|"):
+                    line = line[:-1]
                 cells = [c.strip() for c in line.split("|")]
+                # Skip markdown-style separator rows like "--- | ---".
+                if all(_re_notes.fullmatch(r":?-{2,}:?", c) for c in cells if c) and any(cells):
+                    continue
                 if cells:
                     rows.append(cells)
             if rows:
+                width = max(len(r) for r in rows)
+                rows = [r + [""] * (width - len(r)) for r in rows]
                 blocks.append(("table", rows))
         else:
             # Malformed — no closing tag. Treat the rest as plain text
@@ -623,6 +649,7 @@ def make_pdf(text, title=None, theme_name="paper", font_size_name="normal"):
         buf, pagesize=letter,
         leftMargin=0.9 * inch, rightMargin=0.9 * inch,
         topMargin=1.0 * inch, bottomMargin=0.9 * inch,
+        title=_doc_title(text), author=" ", creator=" ", producer=" ",
     )
     title_style, header_style, body_style, theme = _notez_styles(theme_name, font_size_name)
     story = []
@@ -641,6 +668,7 @@ def make_pdf(text, title=None, theme_name="paper", font_size_name="normal"):
                     ("BACKGROUND", (0, 0), (-1, 0), theme["primary"]),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                     ("FONTNAME", (0, 0), (-1, 0), "Times-Bold"),
+                    ("FONTNAME", (0, 1), (-1, -1), "Times-Roman"),
                     ("GRID", (0, 0), (-1, -1), 0.5, theme["secondary"]),
                     ("FONTSIZE", (0, 0), (-1, -1), FONT_SIZES.get(font_size_name, 10.5)),
                     ("TOPPADDING", (0, 0), (-1, -1), 6),
@@ -685,6 +713,9 @@ def make_docx(text, title=None, theme_name="paper", font_size_name="normal"):
     theme = THEMES.get(theme_name, THEMES["paper"])
     base_size = FONT_SIZES.get(font_size_name, FONT_SIZES["normal"])
     doc = Document()
+    doc.core_properties.title = _doc_title(text)
+    doc.core_properties.author = " "
+    doc.core_properties.last_modified_by = " "
 
     # Set the document's base style to Georgia so normal body text
     # (paragraphs added without an explicit run font) uses it too.

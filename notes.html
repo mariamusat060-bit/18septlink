@@ -190,6 +190,12 @@
     color: var(--ink-muted);
     margin: 4px 0 16px 2px;
   }
+  .mini-select {
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    margin-left: 4px;
+  }
   .upload-link {
     color: var(--teal);
     text-decoration: underline;
@@ -352,6 +358,23 @@
     </div>
     <p class="field-caption">
       <span class="upload-link" onclick="document.getElementById('fileInput').click()">Drop a file (PDF, Word, or a photo of handwritten notes)</span>
+    </p>
+    <p class="field-caption" id="micLangRow" style="margin-top:-8px;">
+      Speak in
+      <select id="micLang" class="mini-select" onchange="saveMicLang()">
+        <option value="">my device's language</option>
+        <option value="en-AU">English (Australia)</option>
+        <option value="en-US">English (US)</option>
+        <option value="en-GB">English (UK)</option>
+        <option value="ro-RO">Română</option>
+        <option value="es-ES">Español</option>
+        <option value="fr-FR">Français</option>
+        <option value="de-DE">Deutsch</option>
+        <option value="it-IT">Italiano</option>
+        <option value="pt-BR">Português</option>
+        <option value="ja-JP">日本語</option>
+        <option value="zh-CN">中文</option>
+      </select>
     </p>
     <input type="file" id="fileInput" accept=".pdf,.docx,.png,.jpg,.jpeg" style="display:none" onchange="handleFile(this.files[0]); this.value='';" />
 
@@ -648,7 +671,7 @@ function toggleVoice() {
   recognizer = new SpeechRec();
   recognizer.continuous = true;
   recognizer.interimResults = false;
-  recognizer.lang = navigator.language || "en-US";
+  recognizer.lang = document.getElementById("micLang").value || navigator.language || "en-US";
   recognizer.onresult = (e) => {
     const notes = document.getElementById("notes");
     for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -672,7 +695,15 @@ function toggleVoice() {
   recognizer.start();
   setMicUI(true);
 }
-if (!SpeechRec) document.getElementById("micBtn").style.display = "none";
+if (!SpeechRec) {
+  document.getElementById("micBtn").style.display = "none";
+  document.getElementById("micLangRow").style.display = "none";
+}
+function saveMicLang() { lsSet("tidy.micLang", document.getElementById("micLang").value); }
+(function restoreMicLang() {
+  const v = lsGet("tidy.micLang");
+  if (v) document.getElementById("micLang").value = v;
+})();
 
 /* ---------- generate / refine / export ---------- */
 async function go() {
