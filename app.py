@@ -13,6 +13,26 @@ if not API_KEY:
     raise RuntimeError("ANTHROPIC_API_KEY environment variable not set.")
 client = anthropic.Anthropic(api_key=API_KEY)
 
+# Once a real custom domain is bought and connected in Render, set this
+# to it (e.g. "usetidy.com") to redirect anyone who lands on the old
+# onrender.com URL over to the real domain instead. Render keeps the
+# onrender.com address working even after a custom domain is added, so
+# without this, both URLs would keep working side by side — this makes
+# the custom domain the one and only address people actually land on.
+CUSTOM_DOMAIN = "tidymynotes.app"
+
+
+@app.before_request
+def _redirect_to_custom_domain():
+    if not CUSTOM_DOMAIN:
+        return  # no custom domain set yet — do nothing
+    host = request.host.split(":")[0]  # strip any port
+    if host.endswith("onrender.com"):
+        from flask import redirect
+        target = f"https://{CUSTOM_DOMAIN}{request.full_path}"
+        return redirect(target.rstrip("?"), code=301)
+
+
 MAX_NOTES_CHARS = 6000
 
 # Generic non-answers that name no real topic. Catches lazy closers beyond
@@ -220,6 +240,14 @@ NOT_NOTES_SIGNAL = "NOT_NOTES"
 
 @app.route("/")
 def home():
+    # Tidy is now the main page at the root address.
+    return send_from_directory(".", "notes.html")
+
+
+@app.route("/debrief")
+def debrief_page():
+    # The flight-debrief tool, parked here rather than deleted. Its
+    # /generate route is unchanged, so the page still works as before.
     return send_from_directory(".", "index.html")
 
 
