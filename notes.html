@@ -371,7 +371,7 @@
 
     <button id="goBtn" class="full" onclick="go()">Tidy it.</button>
     <p class="hint-line">Editable draft &middot; Export to PDF or Word</p>
-    <p class="hint-line">Tidy doesn't save your notes on its server. They're sent to Claude to be tidied.</p>
+    <p class="hint-line">Powered by Claude. Tidy keeps your notes only on your device.</p>
     <div id="status"></div>
   </div>
 
@@ -464,7 +464,7 @@ function updateCounter() {
   if (words === 0) { el.textContent = "0 words"; return; }
   const pages = Math.max(1, Math.round(t.length / 3000));
   let text = words.toLocaleString() + " words · ~" + pages + (pages === 1 ? " page" : " pages");
-  if (t.length > 90000) text += " · a long one, this may take a minute";
+  if (words > 3000) text += " · tidying takes a few minutes";
   el.textContent = text;
 }
 
