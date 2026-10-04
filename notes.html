@@ -255,8 +255,8 @@
     text-align: center;
     margin: 8px 0 0 0;
   }
-  #status { font-size: 14px; color: var(--teal); margin-top: 10px; min-height: 18px; }
-  #status.error { color: var(--terracotta); }
+  #status, #draftStatus { font-size: 14px; color: var(--teal); margin-top: 10px; min-height: 18px; }
+  #status.error, #draftStatus.error { color: var(--terracotta); }
 
   #ghostSheet {
     background: #fff;
@@ -305,6 +305,11 @@
   .setting-group label { font-size: 11px; color: var(--ink-muted); font-weight: 500; }
   .export-buttons { display: flex; gap: 10px; margin-top: 16px; }
   .export-buttons button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .export-buttons button:disabled {
+    background: var(--ghost);
+    color: var(--ink-muted);
+    border: 1px solid var(--border);
+  }
   .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
   .dot.pdf { background: var(--pdf-dot); }
   .dot.word { background: var(--word-dot); }
@@ -330,7 +335,7 @@
   <div class="col">
     <label class="field-label">Your notes</label>
     <div class="notes-wrap" id="notesWrap">
-      <textarea id="notes" rows="10" autocomplete="off" placeholder="mtg w/ Sam &#8594; budget?? due fri" autofocus></textarea>
+      <textarea id="notes" rows="10" autocomplete="off" placeholder="mtg w/ Sam &#8594; budget?? due fri&#10;call mum, book dentist!!&#10;ch.4 supply &amp; demand, elasticity (ask Dr K?)" autofocus></textarea>
       <div class="drop-hint">Drop a file to add it</div>
       <div class="box-tools">
         <button type="button" class="icon-btn" id="micBtn" title="Speak your notes" aria-label="Speak your notes" onclick="toggleVoice()">
@@ -346,8 +351,7 @@
       <span id="saveNote"></span>
     </div>
     <p class="field-caption">
-      Works well up to about 30 pages &middot;
-      <span class="upload-link" onclick="document.getElementById('fileInput').click()">or drop a file (PDF, Word, or a photo of handwritten notes)</span>
+      <span class="upload-link" onclick="document.getElementById('fileInput').click()">Drop a file (PDF, Word, or a photo of handwritten notes)</span>
     </p>
     <input type="file" id="fileInput" accept=".pdf,.docx,.png,.jpg,.jpeg" style="display:none" onchange="handleFile(this.files[0]); this.value='';" />
 
@@ -414,6 +418,7 @@
       <button id="exportPdfBtn" onclick="exportAs('pdf')" disabled><span class="dot pdf"></span>Export PDF</button>
       <button class="secondary" id="exportWordBtn" onclick="exportAs('word')" disabled><span class="dot word"></span>Export Word</button>
     </div>
+    <div id="draftStatus"></div>
   </div>
 
 </div>
@@ -458,7 +463,9 @@ function updateCounter() {
   }
   if (words === 0) { el.textContent = "0 words"; return; }
   const pages = Math.max(1, Math.round(t.length / 3000));
-  el.textContent = words.toLocaleString() + " words · ~" + pages + (pages === 1 ? " page" : " pages");
+  let text = words.toLocaleString() + " words · ~" + pages + (pages === 1 ? " page" : " pages");
+  if (t.length > 90000) text += " · a long one, this may take a minute";
+  el.textContent = text;
 }
 
 /* ---------- autosave on this device ---------- */
@@ -496,6 +503,7 @@ function clearSaved() {
   updateCounter();
   document.getElementById("saveNote").textContent = "";
   document.getElementById("status").textContent = "";
+  document.getElementById("draftStatus").textContent = "";
 }
 
 /* ---------- chips ---------- */
@@ -721,7 +729,7 @@ async function go() {
 async function refine() {
   const draft = document.getElementById("draftText").value.trim();
   const instruction = sanitizeForRequest(document.getElementById("refineInput").value.trim());
-  const status = document.getElementById("status");
+  const status = document.getElementById("draftStatus");
   const refineBtn = document.getElementById("refineBtn");
 
   status.classList.remove("error");
@@ -772,7 +780,7 @@ async function exportAs(format) {
   const text = document.getElementById("draftText").value.trim();
   const theme = document.getElementById("themeSelect").value;
   const fontSize = document.getElementById("fontSelect").value;
-  const status = document.getElementById("status");
+  const status = document.getElementById("draftStatus");
 
   status.classList.remove("error");
   if (!text) {
@@ -780,6 +788,26 @@ async function exportAs(format) {
     status.classList.add("error");
     return;
   }
+  const suggested = suggestFilename(text) + (format === "word" ? ".docx" : ".pdf");
+
+  // Where the browser supports it (desktop Chrome and Edge), let the person
+  // pick the folder and file name. It is asked first, right after the tap,
+  // because browsers only allow this dialog straight after a click.
+  let handle = null;
+  if (window.showSaveFilePicker) {
+    try {
+      handle = await window.showSaveFilePicker({
+        suggestedName: suggested,
+        types: [format === "word"
+          ? { description: "Word document", accept: { "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"] } }
+          : { description: "PDF", accept: { "application/pdf": [".pdf"] } }],
+      });
+    } catch (e) {
+      if (e && e.name === "AbortError") { status.innerText = ""; return; }
+      handle = null;
+    }
+  }
+
   status.innerText = "Preparing your file...";
 
   try {
@@ -795,14 +823,30 @@ async function exportAs(format) {
       return;
     }
     const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = suggestFilename(text) + (format === "word" ? ".docx" : ".pdf");
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    status.innerText = (format === "word" ? "Word file" : "PDF") + " downloaded.";
+
+    let saved = false;
+    if (handle) {
+      try {
+        const w = await handle.createWritable();
+        await w.write(blob);
+        await w.close();
+        saved = true;
+      } catch (e) { saved = false; }
+    }
+    if (!saved) {
+      // Other browsers: a normal download, named after the first heading.
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = suggested;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    }
+    status.innerText = saved
+      ? "Saved as " + handle.name + "."
+      : (format === "word" ? "Word file" : "PDF") + " downloaded.";
   } catch (e) {
     status.innerText = "Could not reach the server. Try again.";
     status.classList.add("error");
