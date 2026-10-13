@@ -7,6 +7,7 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tidy</title>
+<script defer src="https://cloud.umami.is/script.js" data-website-id="cba7c42a-ca83-4ff7-995f-e6678cbae2b1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Literata:wght@400;500;600&family=Fraunces:wght@500;600&display=swap" rel="stylesheet">
@@ -19,6 +20,7 @@
     --teal: #2F6F73;
     --teal-light: #6B9C9F;
     --teal-glow: rgba(47,111,115,0.25);
+    --on-teal: #fff;
     --highlight: #EEF3C7;
     --before-text: #6E7280;
     --terracotta: #C0654A;
@@ -34,6 +36,7 @@
       --ink: #F2EFE9;
       --ink-muted: #B8B3A8;
       --teal: #4A9498;
+      --on-teal: #0F1F20;
       --teal-light: #6B9C9F;
       --highlight: #3A3F2A;
       --before-text: #9C9890;
@@ -120,7 +123,15 @@
     margin-bottom: 0;
   }
   @media (prefers-color-scheme: dark) {
-    #notes { background: #242320; background-image: none; }
+    textarea, input[type=text] { background: #242320; }
+    #notes {
+      background: #242320;
+      background-image: repeating-linear-gradient(
+        to bottom,
+        transparent, transparent 26px,
+        #46443A 27px, transparent 28px
+      );
+    }
   }
   #notes:focus { color: var(--ink); }
   .notes-wrap.dragover #notes {
@@ -230,7 +241,7 @@
   @media (prefers-color-scheme: dark) { .chip { background: #242320; } }
   .chip.selected {
     background: var(--teal);
-    color: #fff;
+    color: var(--on-teal);
     border-color: var(--teal);
   }
   .chip.selected::before { content: "\2713\00a0"; }
@@ -244,7 +255,7 @@
     border: none;
     border-radius: 14px;
     background: var(--teal);
-    color: #fff;
+    color: var(--on-teal);
     letter-spacing: -0.01em;
     cursor: pointer;
   }
@@ -376,7 +387,7 @@
         <option value="zh-CN">中文</option>
       </select>
     </p>
-    <input type="file" id="fileInput" accept=".pdf,.docx,.png,.jpg,.jpeg" style="display:none" onchange="handleFile(this.files[0]); this.value='';" />
+    <input type="file" id="fileInput" accept="image/*,.pdf,.docx" style="display:none" onchange="handleFile(this.files[0]); this.value='';" />
 
     <label class="field-label">What to do with them</label>
     <div class="chip-row" id="chipRow">
@@ -452,6 +463,10 @@ const KEY_NOTES = "tidy.notes";
 const KEY_DRAFT = "tidy.draft";
 
 /* ---------- small helpers ---------- */
+function track(name, data) {
+  // Counts that an action happened (never any note text). Silent if blocked.
+  try { if (window.umami && window.umami.track) window.umami.track(name, data); } catch (e) {}
+}
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
@@ -598,25 +613,67 @@ function fileToBase64(file) {
   });
 }
 
+// Phone photos come in many formats and are large. Shrinking them and saving
+// as JPEG makes the upload faster and works for any format the browser can open.
+function imageToJpegBase64(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const maxSide = 1800;
+      const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.88).split(",")[1]);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("decode")); };
+    img.src = url;
+  });
+}
+
 async function handleFile(file) {
   if (!file) return;
   const status = document.getElementById("status");
   status.classList.remove("error");
 
   const ext = file.name.split(".").pop().toLowerCase();
-  if (!["pdf", "docx", "png", "jpg", "jpeg"].includes(ext)) {
-    status.innerText = "Use a PDF, Word file, or a photo (jpg/png).";
+  const isImage = (file.type || "").startsWith("image/") ||
+    ["png", "jpg", "jpeg", "webp", "heic", "heif", "gif"].includes(ext);
+  const isDoc = ext === "pdf" || ext === "docx";
+  if (!isImage && !isDoc) {
+    status.innerText = "Use a PDF, a Word file, or a photo.";
     status.classList.add("error");
     return;
   }
-  status.innerText = (ext === "pdf" || ext === "docx") ? "Reading your file..." : "Reading your photo...";
+  status.innerText = isDoc ? "Reading your file..." : "Reading your photo...";
 
   try {
-    const base64 = await fileToBase64(file);
+    let base64, fileType;
+    if (isImage) {
+      try {
+        base64 = await imageToJpegBase64(file);
+        fileType = "jpg";
+      } catch (e) {
+        status.innerText = "Couldn't open that photo. Try a JPG or PNG.";
+        status.classList.add("error");
+        return;
+      }
+    } else {
+      base64 = await fileToBase64(file);
+      fileType = ext;
+    }
     const r = await fetch("/extract-text", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ file_data: base64, file_type: ext, filename: file.name })
+      body: JSON.stringify({ file_data: base64, file_type: fileType, filename: file.name })
     });
     const d = await r.json();
     if (!r.ok) {
@@ -627,6 +684,7 @@ async function handleFile(file) {
     const notes = document.getElementById("notes");
     notes.value = notes.value.trim() ? notes.value.trim() + "\n\n" + d.text : d.text;
     onNotesChanged();
+    track("file_added", { kind: isImage ? "photo" : ext });
     status.innerText = "Added from " + file.name + ".";
   } catch (e) {
     status.innerText = "Could not reach the server. Try again.";
@@ -669,7 +727,10 @@ function toggleVoice() {
   if (!SpeechRec) return;
   if (listening) { recognizer.stop(); return; }
   recognizer = new SpeechRec();
-  recognizer.continuous = true;
+  // Safari's speech recognition is more limited than Chrome's: it handles one
+  // phrase per tap rather than a long continuous recording.
+  const isSafari = /^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.userAgent);
+  recognizer.continuous = !isSafari;
   recognizer.interimResults = false;
   recognizer.lang = document.getElementById("micLang").value || navigator.language || "en-US";
   recognizer.onresult = (e) => {
@@ -684,16 +745,31 @@ function toggleVoice() {
     onNotesChanged();
   };
   recognizer.onerror = (e) => {
+    const msgs = {
+      "not-allowed": "Microphone access is blocked. Allow it for this site in your browser settings.",
+      "service-not-allowed": "Speech recognition is switched off on this device. Turn on Dictation (or Siri) in your device settings.",
+      "no-speech": "Didn't hear anything. Tap the mic and try again.",
+      "audio-capture": "No microphone found.",
+      "network": "Speech recognition needs an internet connection.",
+      "language-not-supported": "This browser can't listen in that language. Pick another under Speak in.",
+    };
     status.classList.add("error");
-    status.innerText = e.error === "not-allowed"
-      ? "Microphone access is blocked. Allow it in your browser settings."
-      : "Couldn't hear that. Try again.";
+    status.innerText = msgs[e.error] || ("Couldn't hear that (" + e.error + "). Try again.");
   };
-  recognizer.onend = () => setMicUI(false);
+  recognizer.onend = () => {
+    setMicUI(false);
+    if (status.innerText === "Listening...") status.innerText = "";
+  };
   status.classList.remove("error");
+  track("mic_used");
   status.innerText = "Listening...";
-  recognizer.start();
-  setMicUI(true);
+  try {
+    recognizer.start();
+    setMicUI(true);
+  } catch (err) {
+    status.classList.add("error");
+    status.innerText = "Couldn't start the microphone. Try again.";
+  }
 }
 if (!SpeechRec) {
   document.getElementById("micBtn").style.display = "none";
@@ -745,6 +821,7 @@ async function go() {
     showDraft();
     flashHighlight();
     saveDraft();
+    track("tidied", { words: (document.getElementById("notes").value.match(/\S+/g) || []).length });
     status.innerText = d.warning ? d.warning : "Draft ready — edit it, or export when you're happy.";
     if (d.warning) status.classList.add("error");
     document.getElementById("draftText").scrollIntoView({ behavior: "smooth" });
@@ -796,6 +873,7 @@ async function refine() {
     document.getElementById("refineInput").value = "";
     flashHighlight();
     saveDraft();
+    track("refined");
     status.innerText = "Updated.";
   } catch (e) {
     status.innerText = "Could not reach the server. Try again.";
@@ -875,6 +953,7 @@ async function exportAs(format) {
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
     }
+    track("exported", { format: format });
     status.innerText = saved
       ? "Saved as " + handle.name + "."
       : (format === "word" ? "Word file" : "PDF") + " downloaded.";
